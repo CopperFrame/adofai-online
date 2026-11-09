@@ -337,7 +337,7 @@ public class OnlineScreen : MonoBehaviour
         busy = true;
         ShowToast("Criando sala…");
         string code = null, error = null;
-        yield return client.CreateRoom($"Sala de {OnlineClient.PlayerName}", isPublic, (c, e) =>
+        yield return client.CreateRoom(Loc.T("Sala de ") + OnlineClient.PlayerName, isPublic, (c, e) =>
         {
             code = c;
             error = e;
@@ -807,7 +807,7 @@ public class OnlineScreen : MonoBehaviour
         startButton.interactable = client.inGame || (allReady && level != null);
         string startLabel = client.inGame ? "Encerrar partida" : "Começar partida";
         var startText = startButton.GetComponentInChildren<Text>();
-        if (startText.text != startLabel)
+        if (startText.text != Loc.T(startLabel))
         {
             SetText(startText, startLabel);
         }
@@ -935,6 +935,7 @@ public class OnlineScreen : MonoBehaviour
             ? $"<color=#ffffff77><i>{safe}</i></color>"
             : $"<color={(line.mine ? "#8be28b" : "#ffd166")}>{(line.name ?? "").Replace("<", "<\u200B")}:</color>  {safe}";
         var t = MakeText(chatContent, text, 28, Color.white);
+        t.gameObject.name = "ChatLine"; // o texto dos jogadores não é traduzido (Loc)
         t.horizontalOverflow = HorizontalWrapMode.Wrap;
         t.verticalOverflow = VerticalWrapMode.Overflow;
         t.alignment = TextAnchor.UpperLeft;

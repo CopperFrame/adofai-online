@@ -379,7 +379,7 @@ public class OnlineClient : MonoBehaviour
     {
         Leave(notify: false);
         code = (code ?? "").Trim().ToUpperInvariant();
-        string name = string.IsNullOrWhiteSpace(PlayerName) ? "Jogador" : PlayerName;
+        string name = string.IsNullOrWhiteSpace(PlayerName) ? Loc.T("Jogador") : PlayerName;
         string wsUrl = ServerUrl.Replace("https://", "wss://").Replace("http://", "ws://") +
                        $"/rooms/{code}/ws?v={Protocol}&name={Uri.EscapeDataString(name)}";
         state = State.Connecting;
@@ -602,7 +602,7 @@ public class OnlineClient : MonoBehaviour
                 if (p != null && GetPlayer(p.id) == null)
                 {
                     players.Add(p);
-                    AddChat(new ChatLine { system = true, text = p.name + (p.spectator ? " entrou para assistir" : " entrou na sala") });
+                    AddChat(new ChatLine { system = true, text = p.name + (p.spectator ? Loc.T(" entrou para assistir") : Loc.T(" entrou na sala")) });
                 }
                 OnRoomChanged?.Invoke();
                 break;
@@ -613,7 +613,7 @@ public class OnlineClient : MonoBehaviour
                 players.RemoveAll(p => p.id == msg.Value<int>("id"));
                 if (gone != null)
                 {
-                    AddChat(new ChatLine { system = true, text = gone.name + " saiu da sala" });
+                    AddChat(new ChatLine { system = true, text = gone.name + Loc.T(" saiu da sala") });
                 }
                 OnRoomChanged?.Invoke();
                 break;
@@ -692,7 +692,7 @@ public class OnlineClient : MonoBehaviour
                 string text = msg.Value<string>("text") ?? "";
                 if (text.Length > 0)
                 {
-                    AddChat(new ChatLine { name = GetPlayer(from)?.name ?? "Jogador", text = text, mine = from == myId });
+                    AddChat(new ChatLine { name = GetPlayer(from)?.name ?? Loc.T("Jogador"), text = text, mine = from == myId });
                 }
                 OnChat?.Invoke(from, text);
                 break;

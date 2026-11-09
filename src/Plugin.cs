@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace AdofaiOnlineMod
 {
-    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.1.0")]
+    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.0")]
     public class Plugin : BaseUnityPlugin
     {
         internal static BepInEx.Logging.ManualLogSource Log;
@@ -26,8 +26,15 @@ namespace AdofaiOnlineMod
                 "Optional second server, used when the first does not answer.").Value ?? "").Trim();
             if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
             {
-                Log.LogWarning("Nenhum servidor configurado: edite BepInEx/config/adofai.port.online.cfg");
+                Log.LogWarning("No server configured: edit BepInEx/config/adofai.port.online.cfg");
             }
+
+            // idioma das telas do mod: auto = o idioma do jogo (português se estiver em português, senão inglês)
+            string language = (Config.Bind("General", "Language", "auto",
+                new BepInEx.Configuration.ConfigDescription("Language of the mod's screens: auto (follows the game language), en or pt.",
+                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt"))).Value ?? "auto").Trim().ToLowerInvariant();
+            Loc.Preferred = language == "en" ? Loc.Mode.English : language == "pt" ? Loc.Mode.Portuguese : Loc.Mode.Auto;
+            Log.LogInfo("Language: " + language + " (screens in " + (Loc.English ? "English" : "Portuguese") + ")");
             var harmony = new Harmony("adofai.port.online");
             harmony.PatchAll(typeof(Plugin).Assembly);
 

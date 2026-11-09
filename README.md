@@ -29,7 +29,9 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
    see [Servers](#servers). Everyone in a room must use the same server.
 4. Start the game, open the level selector (custom levels) — two buttons appear at the top right:
    **Online** and **Fases da comunidade** ("community levels": the ADOFAI.gg / TUF browser).
-   Note: the mod's own screens are currently only in Portuguese.
+   The mod's screens are available in **English and Portuguese**: by default they follow the game language
+   (Portuguese if the game is in Portuguese, English otherwise). To force one, set `Language = en` or `pt` in
+   `BepInEx/config/adofai.port.online.cfg` (section `[General]`).
 
 To uninstall: delete `AdofaiOnlineMod.dll` (or the whole `BepInEx` folder, `winhttp.dll`, `doorstop_config.ini`).
 
@@ -148,4 +150,6 @@ instalação.
 
 MIT, veja o [LICENSE](LICENSE).
 
-> Observação: as telas do mod estão, por enquanto, apenas em português.
+> As telas do mod existem em **inglês e português**: por padrão seguem o idioma do jogo (português se o jogo estiver
+> em português, inglês nos demais). Para forçar um, use `Language = en` ou `pt` em `[General]` no arquivo
+> `BepInEx/config/adofai.port.online.cfg`.

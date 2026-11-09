@@ -327,9 +327,9 @@ public class OnlineSpectate : MonoBehaviour
             emptyText.gameObject.SetActive(false);
         }
         var player = client.GetPlayer(targetId);
-        string label = "Assistindo  <b>" + (player?.name ?? "Jogador") + "</b>" +
+        string label = Loc.T("Assistindo  <b>") + (player?.name ?? Loc.T("Jogador")) + "</b>" +
                        (racing.Count > 1 ? $"  <size=30><color=#ffffff88>({racing.IndexOf(targetId) + 1}/{racing.Count})</color></size>" : "");
-        if (nameText.text != label)
+        if (nameText.text != Loc.T(label))
         {
             PortUi.SetText(nameText, label);
         }

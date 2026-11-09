@@ -883,7 +883,7 @@ public class OnlineMatch : MonoBehaviour
             rows.Add(new JObject
             {
                 ["id"] = id,
-                ["name"] = p?.name ?? "Jogador",
+                ["name"] = p?.name ?? Loc.T("Jogador"),
                 ["left"] = p == null,
                 ["finished"] = me ? localFinished : r.finishedEver,
                 ["quit"] = HasQuit(id),
@@ -952,7 +952,7 @@ public class OnlineMatch : MonoBehaviour
         overlay.SetActive(true);
         double left = System.Math.Max(0.0, (deadlineServerMs - client.ServerNowMs) / 1000.0);
         string text = $"Alguém terminou! A partida acaba em {(int)left / 60}:{(int)left % 60:00}";
-        if (timerText.text != text)
+        if (timerText.text != Loc.T(text))
         {
             PortUi.SetText(timerText, text);
         }
@@ -1039,7 +1039,7 @@ public class OnlineMatch : MonoBehaviour
             overlay = canvas.gameObject;
             overlayPill = pill.gameObject;
         }
-        if (overlayText.text != text)
+        if (overlayText.text != Loc.T(text))
         {
             PortUi.SetText(overlayText, text);
         }

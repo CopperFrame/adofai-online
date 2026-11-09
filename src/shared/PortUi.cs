@@ -248,6 +248,7 @@ public static class PortUi
     {
         EnsureEventSystem();
         var canvasGo = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        Loc.Register(canvasGo.transform);
         canvasGo.transform.SetParent(parent, false);
         var canvas = canvasGo.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;

@@ -144,7 +144,7 @@ public class OnlineGhosts : MonoBehaviour
             var ghost = new Ghost
             {
                 id = id,
-                name = player?.name ?? "Jogador",
+                name = player?.name ?? Loc.T("Jogador"),
                 planetA = MakePlanet(reference, color),
                 planetB = MakePlanet(reference, Color.Lerp(color, Color.white, 0.45f)),
             };
@@ -407,7 +407,7 @@ public class OnlineGhosts : MonoBehaviour
             }
             g.label.enabled = onScreen;
             string text = g.name + (dead ? "  (caiu)" : run.finished ? "  (terminou)" : "");
-            if (g.label.text != text)
+            if (g.label.text != Loc.T(text))
             {
                 PortUi.SetText(g.label, text);
             }
