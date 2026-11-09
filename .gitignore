@@ -1,0 +1,5 @@
+dist/
+node_modules/
+*.log
+oracle-ip.txt
+.dev.log
