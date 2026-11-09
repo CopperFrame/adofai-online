@@ -23,8 +23,8 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
    <https://github.com/BepInEx/BepInEx/releases> and extract it into the game folder
    (the folder with `A Dance of Fire and Ice.exe`). Run the game once so BepInEx creates its folders.
 2. Copy `AdofaiOnlineMod.dll` (from the release zip) into `BepInEx/plugins/`.
-3. Start the game once and close it, then open `BepInEx/config/adofai.port.online.cfg` and set `Primary =` to the
-   address of your room server (see [Servers](#servers); everyone in a room must use the same one).
+3. (Optional) To use a different server, start the game once, close it, and edit `BepInEx/config/adofai.port.online.cfg`:
+   see [Servers](#servers). Everyone in a room must use the same server.
 4. Start the game, open the level selector (custom levels) — two buttons appear at the top right:
    **Online** and **Fases da comunidade** (community levels).
 
@@ -41,8 +41,11 @@ patches to hook the level start, the fail/restart flow and a few input/audio spo
 
 ## Servers
 
-The mod needs a room server. No address is built into the code: after the first run, open
-`BepInEx/config/adofai.port.online.cfg` and set
+The mod works out of the box with the project's public servers (a free Oracle Cloud VM in São Paulo, with a
+Cloudflare Workers fallback). They are free community servers with no guarantees and per-IP limits (rooms per hour,
+uploads per hour, simultaneous connections); levels sent to a room are kept for only 10 minutes.
+
+To use another server, edit `BepInEx/config/adofai.port.online.cfg` (created on the first run):
 
 ```ini
 [Server]
@@ -51,7 +54,7 @@ Fallback =
 ```
 
 `Primary` is tried first and `Fallback` (optional) if it does not answer. **All players in a room must use the same
-server**, so share the address with your friends (or ask whoever hosts a server for the address).
+server.**
 
 You can host your own for free:
 
@@ -88,8 +91,8 @@ estão nessas fontes. Funciona junto com o port Android: PC e celular na mesma s
 1. Instale o **BepInEx 5 (x64)** na pasta do jogo (a que tem o `A Dance of Fire and Ice.exe`):
    <https://github.com/BepInEx/BepInEx/releases>. Abra o jogo uma vez para ele criar as pastas.
 2. Copie `AdofaiOnlineMod.dll` para `BepInEx/plugins/`.
-3. Abra o jogo uma vez, feche, e em `BepInEx/config/adofai.port.online.cfg` coloque o endereço do servidor em
-   `Primary =` (todos da sala precisam usar o mesmo servidor).
+3. (Opcional) Para usar outro servidor, abra o jogo uma vez, feche e edite `BepInEx/config/adofai.port.online.cfg`:
+   `Primary =` (todos da sala precisam usar o mesmo servidor). O padrão já usa os servidores públicos do projeto.
 4. Abra o seletor de fases personalizadas: aparecem os botões **Online** e **Fases da comunidade** no canto
    superior direito.
 

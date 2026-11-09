@@ -74,7 +74,8 @@ async function handleFile(req, res, key) {
     return fs.createReadStream(file).pipe(res);
   }
   if (req.method === "PUT") {
-    // só quem está numa sala existente pode enviar
+    // só quem está numa sala existente pode enviar, e poucas vezes por hora
+    if (rateLimited("upload", clientIp(req), UPLOADS_PER_IP_PER_HOUR)) return json(res, 429, { error: "muitos envios; tente mais tarde" });
     const room = String(req.headers["x-room"] ?? "").toUpperCase();
     if (!rooms.has(room)) return json(res, 403, { error: "sala inválida" });
     const declared = Number(req.headers["content-length"] ?? 0);
@@ -349,6 +350,42 @@ function readBody(req, limit = 4096) {
   });
 }
 
+// proteção contra abuso (o servidor é público): limites por IP. O Node só escuta em 127.0.0.1, atrás do Caddy,
+// que informa o IP real em X-Forwarded-For.
+const MAX_ROOMS_TOTAL = 300;
+const ROOMS_PER_IP_PER_HOUR = 20;
+const UPLOADS_PER_IP_PER_HOUR = 20;
+const MAX_SOCKETS_PER_IP = 12;
+const hits = new Map(); // "tipo|ip" -> horas (ms) dos últimos usos
+const socketsPerIp = new Map();
+
+function clientIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim();
+  return fwd || req.socket.remoteAddress || "?";
+}
+
+function rateLimited(kind, ip, max) {
+  const now = Date.now();
+  const key = kind + "|" + ip;
+  const list = (hits.get(key) ?? []).filter((t) => now - t < 3600_000);
+  if (list.length >= max) {
+    hits.set(key, list);
+    return true;
+  }
+  list.push(now);
+  hits.set(key, list);
+  return false;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, list] of hits) {
+    const fresh = list.filter((t) => now - t < 3600_000);
+    if (fresh.length === 0) hits.delete(key);
+    else hits.set(key, fresh);
+  }
+}, 10 * 60_000);
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   const parts = url.pathname.split("/").filter(Boolean);
@@ -372,6 +409,9 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, list);
     }
     if (req.method === "POST") {
+      if (rooms.size >= MAX_ROOMS_TOTAL || rateLimited("room", clientIp(req), ROOMS_PER_IP_PER_HOUR)) {
+        return json(res, 429, { error: "muitas salas; tente de novo mais tarde" });
+      }
       let body = {};
       try {
         body = JSON.parse((await readBody(req)) || "{}");
@@ -401,7 +441,19 @@ server.on("upgrade", (req, socket, head) => {
     socket.destroy();
     return;
   }
+  const ip = clientIp(req);
+  if ((socketsPerIp.get(ip) ?? 0) >= MAX_SOCKETS_PER_IP) {
+    socket.write("HTTP/1.1 429 Too Many Requests\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  socketsPerIp.set(ip, (socketsPerIp.get(ip) ?? 0) + 1);
   wss.handleUpgrade(req, socket, head, (ws) => {
+    ws.on("close", () => {
+      const n = (socketsPerIp.get(ip) ?? 1) - 1;
+      if (n <= 0) socketsPerIp.delete(ip);
+      else socketsPerIp.set(ip, n);
+    });
     ws.missed = 0;
     ws.on("pong", () => (ws.missed = 0));
     ws.on("message", () => (ws.missed = 0));

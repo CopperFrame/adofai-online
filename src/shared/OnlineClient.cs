@@ -33,8 +33,8 @@ public class OnlineClient : MonoBehaviour
     public static string FallbackServerUrl => AdofaiOnlineMod.ServerConfig.Fallback;
     public static string DefaultServerUrl => FallbackServerUrl;
 #else
-    public const string PrimaryServerUrl = "";
-    public const string FallbackServerUrl = "";
+    public const string PrimaryServerUrl = "https://150-230-231-11.sslip.io";
+    public const string FallbackServerUrl = "https://adofai-port-online.adolfheim.workers.dev";
     public const string DefaultServerUrl = FallbackServerUrl;
 #endif
     private const string ServerPref = "online.server";

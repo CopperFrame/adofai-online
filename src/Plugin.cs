@@ -19,9 +19,10 @@ namespace AdofaiOnlineMod
             Log.LogInfo("ADOFAI Online carregado (Unity " + Application.unityVersion + ")");
 
             // servidores: BepInEx/config/adofai.port.online.cfg (nada fixo no código)
-            ServerConfig.Primary = (Config.Bind("Server", "Primary", "",
-                "Address of the room server to try first, e.g. https://my-server.example. All players in a room must use the same server.").Value ?? "").Trim();
-            ServerConfig.Fallback = (Config.Bind("Server", "Fallback", "",
+            // por padrão usa os servidores públicos do projeto (Oracle Cloud em São Paulo; Cloudflare de reserva)
+            ServerConfig.Primary = (Config.Bind("Server", "Primary", "https://150-230-231-11.sslip.io",
+                "Address of the room server to try first. All players in a room must use the same server. Empty = none.").Value ?? "").Trim();
+            ServerConfig.Fallback = (Config.Bind("Server", "Fallback", "https://adofai-port-online.adolfheim.workers.dev",
                 "Optional second server, used when the first does not answer.").Value ?? "").Trim();
             if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
             {
