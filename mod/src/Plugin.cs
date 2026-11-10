@@ -11,7 +11,7 @@ namespace AdofaiOnlineMod
     [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Version = "0.2.3";
+        public const string Version = "0.2.4";
         internal static BepInEx.Logging.ManualLogSource Log;
 
         /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>
@@ -31,9 +31,9 @@ namespace AdofaiOnlineMod
                 "Address of the room server to try first. All players in a room must use the same server. Empty = none.");
             var fallback = Config.Bind("Server", "Fallback", defaultFallback,
                 "Optional second server, used when the first does not answer.");
+            Loc.LoadPacks(System.IO.Path.Combine(Paths.ConfigPath, "AdofaiOnline-lang"), msg => Log.LogInfo(msg));
             var language = Config.Bind("General", "Language", "auto",
-                new BepInEx.Configuration.ConfigDescription("Language of the mod's screens: auto (follows the game language), en, pt or ko.",
-                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt", "ko")));
+                "Language of the mod's screens: auto (follows the game language), en, pt, ko, or the code of a language file in BepInEx/config/AdofaiOnline-lang (for example es for es.txt).");
             CheckForUpdates = Config.Bind("General", "CheckForUpdates", true,
                 "Ask GitHub (api.github.com) once at startup whether a newer version of the mod exists, and show a notice in the level selector. No personal data is sent.");
 

@@ -3,6 +3,7 @@
 // Onde o valor fica guardado depende de quem usa: no port Android, em PlayerPrefs; no mod de PC, no arquivo de
 // configuração do BepInEx (o Plugin troca o Store). A tela só fala com esta classe.
 using System;
+using System.Linq;
 using UnityEngine;
 
 public static class OnlineOptions
@@ -60,7 +61,10 @@ public static class OnlineOptions
     public static string DefaultPrimary = "";
     public static string DefaultFallback = "";
 
-    public static readonly string[] Languages = { "auto", "en", "pt", "ko" };
+    private static readonly string[] BuiltIn = { "auto", "en", "pt", "ko" };
+
+    /// <summary>Idiomas da tela Opções: os do mod e os arquivos da pasta de idiomas (só no mod de PC).</summary>
+    public static string[] Languages => BuiltIn.Concat(Loc.PackCodes).ToArray();
 
     public static event Action Changed;
 
@@ -69,7 +73,7 @@ public static class OnlineOptions
         get
         {
             string v = (Store.Get("language", DefaultLanguage) ?? DefaultLanguage).Trim().ToLowerInvariant();
-            return Array.IndexOf(Languages, v) >= 0 ? v : DefaultLanguage;
+            return Array.IndexOf(BuiltIn, v) >= 0 || Loc.HasPack(v) ? v : DefaultLanguage;
         }
         set
         {
@@ -92,8 +96,12 @@ public static class OnlineOptions
             case "ko":
                 Loc.Preferred = Loc.Mode.Korean;
                 break;
-            default:
+            case "auto":
                 Loc.Preferred = Loc.Mode.Auto;
+                break;
+            default:
+                Loc.UseCustom(Language);
+                Loc.Preferred = Loc.Mode.Custom;
                 break;
         }
     }

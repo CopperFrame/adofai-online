@@ -1437,7 +1437,7 @@ public class OnlineScreen : MonoBehaviour
     private static string LanguageName(string code)
     {
         // cada idioma aparece no próprio nome (não passam pela tradução)
-        return code == "en" ? "English" : code == "pt" ? "Português" : code == "ko" ? "한국어" : "Automático (idioma do jogo)";
+        return code == "en" ? "English" : code == "pt" ? "Português" : code == "ko" ? "한국어" : code == "auto" ? "Automático (idioma do jogo)" : Loc.PackName(code);
     }
 
     private void RefreshOptionsLabels()

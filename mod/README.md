@@ -71,6 +71,15 @@ mod version in the User-Agent). To turn it off, set `CheckForUpdates = false` in
 
 If a game update breaks part of the mod, the same notice tells you which part and where to find a new version.
 
+## Add your own language
+
+The mod ships with English, Portuguese and Korean, and you can add more **without touching the code**. Start the game once:
+the mod creates `BepInEx/config/AdofaiOnline-lang/template.txt` (every text, original Portuguese = English).
+Copy it to `<code>.txt` (for example `es.txt`), add a line `# name: Español`, translate the text after ` = `
+(untranslated lines stay in English), then pick the language in **Online → Options** or set `Language = es` in
+`adofai.port.online.cfg`. Translations are welcome as pull requests (put the file in `mod/lang/`).
+Note: the font only covers Latin scripts and Korean for now.
+
 ## Servers
 
 The mod works out of the box with the project's public servers (a free Oracle Cloud VM in São Paulo, with a
@@ -160,6 +169,14 @@ Para desinstalar, apague o `AdofaiOnlineMod.dll` (ou a pasta `BepInEx`, o `winht
 
 Testado na versão 26397875 do jogo (Unity 6000.3.25f1) com BepInEx 5.4.23.6. Atualizações do jogo podem quebrar
 mods; ao relatar um problema, informe a versão do jogo e anexe o `BepInEx/LogOutput.log`.
+
+### Adicione seu idioma
+
+O mod traz inglês, português e coreano, e dá para acrescentar outros **sem mexer no código**. Abra o jogo uma vez: o mod cria
+`BepInEx/config/AdofaiOnline-lang/template.txt` (todos os textos, original em português = inglês). Copie para `<código>.txt`
+(por exemplo `es.txt`), acrescente a linha `# name: Español`, traduza o que vem depois de ` = ` (o que ficar sem tradução
+aparece em inglês) e escolha o idioma em **Online → Opções** ou com `Language = es` no `adofai.port.online.cfg`.
+Traduções são bem-vindas por pull request (arquivo em `mod/lang/`).
 
 ### Servidores
 

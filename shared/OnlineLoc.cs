@@ -21,6 +21,7 @@ public static partial class Loc
         English,
         Portuguese,
         Korean,
+        Custom, // idioma de arquivo (OnlineLocPacks.cs)
     }
 
     public enum Lang
@@ -28,6 +29,7 @@ public static partial class Loc
         Portuguese,
         English,
         Korean,
+        Custom,
     }
 
     public static Mode Preferred =
@@ -50,6 +52,8 @@ public static partial class Loc
                     return Lang.Portuguese;
                 case Mode.Korean:
                     return Lang.Korean;
+                case Mode.Custom:
+                    return Lang.Custom;
                 default:
                     if (RDString.language == SystemLanguage.Portuguese)
                     {
@@ -282,12 +286,12 @@ public static partial class Loc
         {
             return pt;
         }
-        var cache = lang == Lang.Korean ? CacheKo : Cache;
+        var cache = lang == Lang.Korean ? CacheKo : lang == Lang.Custom ? CacheCustom : Cache;
         if (cache.TryGetValue(pt, out string cached))
         {
             return cached;
         }
-        string result = Translate(pt, lang);
+        string result = lang == Lang.Custom ? TranslateCustom(pt) : Translate(pt, lang);
         if (cache.Count > 4000)
         {
             cache.Clear();
