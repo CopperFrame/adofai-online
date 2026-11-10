@@ -4,7 +4,7 @@ Play custom levels together: create or join a room, pick a level, and race. Ever
 track as ghosts, and anyone who joins late (or finishes early) can watch live.
 
 > Unofficial fan-made mod. Not affiliated with 7th Beat Games. It contains no game code or assets.
-> **Português:** [leia abaixo](#português).
+> **Português:** [leia abaixo](#português). **한국어:** [아래 참고](#한국어).
 
 ## Features
 
@@ -29,8 +29,8 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
    see [Servers](#servers). Everyone in a room must use the same server.
 4. Start the game, open the level selector (custom levels) — two buttons appear at the top right:
    **Online** and **Fases da comunidade** ("community levels": the ADOFAI.gg / TUF browser).
-   The mod's screens are available in **English and Portuguese**: by default they follow the game language
-   (Portuguese if the game is in Portuguese, English otherwise). To force one, set `Language = en` or `pt` in
+   The mod's screens are available in **English, Portuguese and Korean**: by default they follow the game language
+   (Portuguese or Korean if the game is in one of those, English otherwise). To force one, set `Language = en`, `pt` or `ko` in
    `BepInEx/config/adofai.port.online.cfg` (section `[General]`).
 
 To uninstall: delete `AdofaiOnlineMod.dll` (or the whole `BepInEx` folder, `winhttp.dll`, `doorstop_config.ini`).
@@ -150,6 +150,34 @@ instalação.
 
 MIT, veja o [LICENSE](../LICENSE).
 
-> As telas do mod existem em **inglês e português**: por padrão seguem o idioma do jogo (português se o jogo estiver
-> em português, inglês nos demais). Para forçar um, use `Language = en` ou `pt` em `[General]` no arquivo
+> As telas do mod existem em **inglês, português e coreano**: por padrão seguem o idioma do jogo (português ou coreano se o jogo estiver
+> nesses idiomas, inglês nos demais). Para forçar um, use `Language = en`, `pt` ou `ko` em `[General]` no arquivo
 > `BepInEx/config/adofai.port.online.cfg`.
+
+---
+
+## 한국어
+
+**A Dance of Fire and Ice** (PC, Steam)용 **비공식** 온라인 방 모드입니다. 7th Beat Games와 관련이 없으며, 게임 코드나 파일을 포함하지 않습니다.
+
+### 기능
+
+- 최대 4명까지 방 생성: 공개(지역별 목록) 또는 비공개(코드로 입장)
+- 레이스 모드: 다른 플레이어가 이름과 함께 고스트로 표시됩니다
+- 관전 모드: 진행 중인 경기에 들어가거나, 완주한 뒤에도 계속 관전할 수 있습니다
+- 방 채팅
+- 방장이 고르는 모디파이어: **무적**(실수해도 계속 진행)과 **속도**(0.5x ~ 2x)
+- PC에 있는 커스텀 레벨 또는 ADOFAI.gg / TUF의 레벨 사용(없는 사람은 자동으로 다운로드). 그 외의 레벨은 방 서버로 자동 업로드됩니다(최대 150 MB, 10분 보관)
+- 화면은 영어, 포르투갈어, **한국어**를 지원하며 게임 언어를 따릅니다(`Language = ko`로 강제할 수 있음)
+- 프로젝트의 Android 포트와 같은 방에서 함께 플레이할 수 있습니다
+
+### 설치 (Windows, Steam)
+
+1. **BepInEx 5 (x64)** 를 게임 폴더(`A Dance of Fire and Ice.exe`가 있는 폴더)에 압축 해제합니다: <https://github.com/BepInEx/BepInEx/releases>. 게임을 한 번 실행하면 BepInEx가 폴더를 만듭니다.
+2. `AdofaiOnlineMod.dll`을 `BepInEx/plugins/` 폴더에 넣습니다.
+3. (선택) 다른 서버를 쓰려면 게임을 한 번 실행했다가 종료한 뒤 `BepInEx/config/adofai.port.online.cfg`를 수정합니다. 같은 방의 모든 플레이어는 같은 서버를 사용해야 합니다.
+4. 게임을 실행하고 커스텀 레벨 선택 화면을 엽니다. 오른쪽 위에 **온라인**과 **커뮤니티 레벨**(ADOFAI.gg / TUF) 버튼이 나타납니다.
+
+제거하려면 `AdofaiOnlineMod.dll`을 지우면 됩니다(또는 `BepInEx` 폴더, `winhttp.dll`, `doorstop_config.ini`).
+
+게임 업데이트로 모드가 동작하지 않을 수 있습니다. 문제를 제보할 때는 게임 버전과 `BepInEx/LogOutput.log`를 함께 알려 주세요.

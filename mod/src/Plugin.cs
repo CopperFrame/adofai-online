@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace AdofaiOnlineMod
 {
-    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.0")]
+    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.1")]
     public class Plugin : BaseUnityPlugin
     {
         internal static BepInEx.Logging.ManualLogSource Log;
@@ -29,12 +29,15 @@ namespace AdofaiOnlineMod
                 Log.LogWarning("No server configured: edit BepInEx/config/adofai.port.online.cfg");
             }
 
-            // idioma das telas do mod: auto = o idioma do jogo (português se estiver em português, senão inglês)
+            // idioma das telas do mod: auto = o idioma do jogo (português, coreano ou, nos demais, inglês)
             string language = (Config.Bind("General", "Language", "auto",
-                new BepInEx.Configuration.ConfigDescription("Language of the mod's screens: auto (follows the game language), en or pt.",
-                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt"))).Value ?? "auto").Trim().ToLowerInvariant();
-            Loc.Preferred = language == "en" ? Loc.Mode.English : language == "pt" ? Loc.Mode.Portuguese : Loc.Mode.Auto;
-            Log.LogInfo("Language: " + language + " (screens in " + (Loc.English ? "English" : "Portuguese") + ")");
+                new BepInEx.Configuration.ConfigDescription("Language of the mod's screens: auto (follows the game language), en, pt or ko.",
+                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt", "ko"))).Value ?? "auto").Trim().ToLowerInvariant();
+            Loc.Preferred = language == "en" ? Loc.Mode.English
+                : language == "pt" ? Loc.Mode.Portuguese
+                : language == "ko" ? Loc.Mode.Korean
+                : Loc.Mode.Auto;
+            Log.LogInfo("Language: " + language + " (screens in " + Loc.Language + ")");
             var harmony = new Harmony("adofai.port.online");
             harmony.PatchAll(typeof(Plugin).Assembly);
 

@@ -24,7 +24,7 @@ custom levels together **online** — on the phone, on PC, or both in the same r
 - Host modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
 - Custom levels from your device, or from ADOFAI.gg / TUF (downloaded automatically); levels from other sources are
   uploaded to the room automatically (max 150 MB, kept for 10 minutes)
-- Screens in **English and Portuguese** (follow the game language)
+- Screens in **English, Portuguese and Korean** (follow the game language)
 - PC and phone can play in the same room
 
 ## Servers
@@ -80,7 +80,7 @@ jogar fases personalizadas **online** — no celular, no PC, ou os dois na mesma
 - Modificadores do anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade** (de 0.5x a 2x)
 - Fases do seu aparelho ou do ADOFAI.gg / TUF (baixadas sozinhas); fases de outras fontes são enviadas
   automaticamente à sala (máximo de 150 MB, guardadas por 10 minutos)
-- Telas em **inglês e português** (seguem o idioma do jogo)
+- Telas em **inglês, português e coreano** (seguem o idioma do jogo)
 - PC e celular podem jogar na mesma sala
 
 ### Servidores

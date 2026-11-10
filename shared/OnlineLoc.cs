@@ -13,13 +13,21 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 
-public static class Loc
+public static partial class Loc
 {
     public enum Mode
     {
         Auto,
         English,
         Portuguese,
+        Korean,
+    }
+
+    public enum Lang
+    {
+        Portuguese,
+        English,
+        Korean,
     }
 
     public static Mode Preferred =
@@ -29,21 +37,30 @@ public static class Loc
         Mode.Portuguese;
 #endif
 
-    public static bool English
+    /// <summary>Idioma das telas: o escolhido, ou (Auto) o do jogo: português, coreano ou, nos demais, inglês.</summary>
+    public static Lang Language
     {
         get
         {
             switch (Preferred)
             {
                 case Mode.English:
-                    return true;
+                    return Lang.English;
                 case Mode.Portuguese:
-                    return false;
+                    return Lang.Portuguese;
+                case Mode.Korean:
+                    return Lang.Korean;
                 default:
-                    return RDString.language != SystemLanguage.Portuguese;
+                    if (RDString.language == SystemLanguage.Portuguese)
+                    {
+                        return Lang.Portuguese;
+                    }
+                    return RDString.language == SystemLanguage.Korean ? Lang.Korean : Lang.English;
             }
         }
     }
+
+    public static bool English => Language == Lang.English;
 
     // textos inteiros (palavras soltas): só trocam quando o texto é exatamente este
     private static readonly Dictionary<string, string> Exact = new Dictionary<string, string>
@@ -119,6 +136,15 @@ public static class Loc
         ("  (caiu)", "  (failed)"),
         ("  (terminou)", "  (finished)"),
         (" da fase", " of the level"),
+
+        // exigência do jogo original (OfficialAppCheck)
+        ("É necessário ter o jogo original", "The original game is required"),
+        ("Instale A Dance of Fire and Ice pela Google Play para usar este port.", "Install A Dance of Fire and Ice from Google Play to use this port."),
+        ("O app instalado não é o original da 7th Beat Games.", "The installed app is not the original from 7th Beat Games."),
+        ("O jogo original precisa ter sido instalado pela Google Play.", "The original game must have been installed from Google Play."),
+        ("Não foi possível verificar o jogo original.", "Could not verify the original game."),
+        ("Abrir na Google Play", "Open in Google Play"),
+        ("Verificar de novo", "Check again"),
 
         // tela online: lista de salas
         ("O servidor online ainda não foi configurado neste jogo.", "The online server is not configured in this game."),
@@ -222,37 +248,41 @@ public static class Loc
 
     private static (string pt, string en)[] phrases;
     private static readonly Dictionary<string, string> Cache = new Dictionary<string, string>();
+    private static readonly Dictionary<string, string> CacheKo = new Dictionary<string, string>();
 
     /// <summary>Traduz um texto de tela para o idioma escolhido (português = devolve o próprio texto).</summary>
     public static string T(string pt)
     {
-        if (string.IsNullOrEmpty(pt) || !English)
+        Lang lang = Language;
+        if (string.IsNullOrEmpty(pt) || lang == Lang.Portuguese)
         {
             return pt;
         }
-        if (Cache.TryGetValue(pt, out string cached))
+        var cache = lang == Lang.Korean ? CacheKo : Cache;
+        if (cache.TryGetValue(pt, out string cached))
         {
             return cached;
         }
-        string en = Translate(pt);
-        if (Cache.Count > 4000)
+        string result = Translate(pt, lang);
+        if (cache.Count > 4000)
         {
-            Cache.Clear();
+            cache.Clear();
         }
-        Cache[pt] = en;
-        return en;
+        cache[pt] = result;
+        return result;
     }
 
-    private static string Translate(string pt)
+    private static string Translate(string pt, Lang lang)
     {
+        bool ko = lang == Lang.Korean;
         if (Exact.TryGetValue(pt, out string whole))
         {
-            return whole;
+            return ko && KoPhrases.TryGetValue(pt, out string koWhole) ? koWhole : whole;
         }
         string s = pt;
-        foreach (var (re, en) in RegexList)
+        for (int i = 0; i < RegexList.Length; i++)
         {
-            s = re.Replace(s, en);
+            s = RegexList[i].re.Replace(s, ko && i < RegexKo.Length ? RegexKo[i] : RegexList[i].en);
         }
         if (phrases == null)
         {
@@ -262,7 +292,7 @@ public static class Loc
         {
             if (s.Contains(p))
             {
-                s = s.Replace(p, en);
+                s = s.Replace(p, ko && KoPhrases.TryGetValue(p, out string k) ? k : en);
             }
         }
         return s;
@@ -287,7 +317,7 @@ public static class Loc
 
     private static void TranslateAll()
     {
-        if (!English)
+        if (Language == Lang.Portuguese)
         {
             return;
         }
@@ -314,7 +344,7 @@ public static class Loc
                 string en = T(t.text);
                 if (en != t.text)
                 {
-                    t.text = en;
+                    PortUi.SetText(t, en); // também escolhe a fonte (coreano precisa de uma fonte com hangul)
                 }
             }
             Scratch.Clear();
