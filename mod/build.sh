@@ -42,6 +42,6 @@ RSP="$OUT/refs.rsp"
 dotnet "$ROSLYN_CSC" -nologo -target:library -out:"$OUT/AdofaiOnlineMod.dll" \
   -langversion:latest -define:ADOFAI_MOD -nowarn:0618,0649,0169,0414,0219 @"$RSP" \
   "$HERE/src/Plugin.cs" "$HERE/src/ModShims.cs" "$HERE/src/GlobalUsings.cs" \
-  "$HERE/src/shared/"*.cs
+  "$HERE/../shared/"*.cs
 
 echo "OK: $OUT/AdofaiOnlineMod.dll"

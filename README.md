@@ -1,155 +1,101 @@
-# ADOFAI Online — multiplayer rooms for A Dance of Fire and Ice (PC mod)
+# ADOFAI Online — mobile port and PC mod for A Dance of Fire and Ice
 
-Play custom levels together: create or join a room, pick a level, and race. Everyone's planets show up on the
-track as ghosts, and anyone who joins late (or finishes early) can watch live.
+Unofficial, fan-made project for **A Dance of Fire and Ice** (7th Beat Games): play the game on **Android** and play
+custom levels together **online** — on the phone, on PC, or both in the same room.
 
-> Unofficial fan-made mod. Not affiliated with 7th Beat Games. It contains no game code or assets.
-> **Português:** [leia abaixo](#português).
+> Not affiliated with, or endorsed by, 7th Beat Games. This repository contains **no game code, assets or builds**.
+> You need your own copy of the game. **Português:** [leia abaixo](#português).
 
-## Features
+## What's in this repository
+
+| Folder | What it is |
+|---|---|
+| [`mod/`](mod) | **PC mod** (BepInEx plugin). Adds online rooms to the Steam version of the game. [Install guide](mod/README.md) · [latest release](../../releases/latest) |
+| [`android/`](android) | **Android port** (touch controls, on-screen pause button, level import/download, online rooms). See [`android/README.md`](android/README.md). |
+| [`shared/`](shared) | The online code used by **both** the mobile port and the PC mod (rooms, race ghosts, spectator, chat, modifiers, level browser, English/Portuguese screens). |
+| [`server/`](server) | The room servers: `node` (self-hosted, e.g. a free Oracle Cloud VM) and `cloudflare` (Workers + Durable Objects). Same protocol. |
+
+## Online features (mobile and PC)
 
 - Rooms with up to 4 players: public (listed by region) or private (join with a code)
 - Race mode: other players appear as ghosts with their name above them
 - Spectator mode: join a match in progress or keep watching after you finish
 - Room chat
-- Host-selected modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
-- The host can pick any level installed on their PC, or one from ADOFAI.gg / TUF (players who don't have it
-  download it automatically)
-- If the level is not on ADOFAI.gg / TUF, it is uploaded to the room server automatically so everyone can
-  download it (max 150 MB, kept for 10 minutes)
-- Works with the Android port of the same project: PC and phone can play in the same room
-
-## Install (Windows, Steam)
-
-1. Install **BepInEx 5 (x64)** — download `BepInEx_win_x64_5.4.23.x.zip` from
-   <https://github.com/BepInEx/BepInEx/releases> and extract it into the game folder
-   (the folder with `A Dance of Fire and Ice.exe`). Run the game once so BepInEx creates its folders.
-2. Copy `AdofaiOnlineMod.dll` (from the release zip) into `BepInEx/plugins/`.
-3. (Optional) To use a different server, start the game once, close it, and edit `BepInEx/config/adofai.port.online.cfg`:
-   see [Servers](#servers). Everyone in a room must use the same server.
-4. Start the game, open the level selector (custom levels) — two buttons appear at the top right:
-   **Online** and **Fases da comunidade** ("community levels": the ADOFAI.gg / TUF browser).
-   The mod's screens are available in **English and Portuguese**: by default they follow the game language
-   (Portuguese if the game is in Portuguese, English otherwise). To force one, set `Language = en` or `pt` in
-   `BepInEx/config/adofai.port.online.cfg` (section `[General]`).
-
-To uninstall: delete `AdofaiOnlineMod.dll` (or the whole `BepInEx` folder, `winhttp.dll`, `doorstop_config.ini`).
-
-Tested with game build 26397875 (Unity 6000.3.25f1) and BepInEx 5.4.23.6. Game updates can break mods;
-please open an issue with the game version and `BepInEx/LogOutput.log`.
-
-## How it works
-
-The mod is a [BepInEx](https://github.com/BepInEx/BepInEx) plugin that uses [Harmony](https://github.com/pardeike/Harmony)
-patches to hook the level start, the fail/restart flow and a few input/audio spots. The online code itself
-(`src/shared`) is the same code used by the Android port, and talks JSON over WebSocket to a small room server.
+- Host modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
+- Custom levels from your device, or from ADOFAI.gg / TUF (downloaded automatically); levels from other sources are
+  uploaded to the room automatically (max 150 MB, kept for 10 minutes)
+- Screens in **English and Portuguese** (follow the game language)
+- PC and phone can play in the same room
 
 ## Servers
 
-The mod works out of the box with the project's public servers (a free Oracle Cloud VM in São Paulo, with a
-Cloudflare Workers fallback). They are free community servers with no guarantees and per-IP limits (rooms per hour,
-uploads per hour, simultaneous connections); levels sent to a room are kept for only 10 minutes.
+Both the mod and the mobile port use the project's free public servers by default (a free Oracle Cloud VM in São
+Paulo, with a Cloudflare Workers fallback). They are community servers with no guarantees and per-IP limits. You can
+host your own for free — see [`server/node`](server/node) and [`server/cloudflare`](server/cloudflare). All players in
+a room must use the same server.
 
-To use another server, edit `BepInEx/config/adofai.port.online.cfg` (created on the first run):
+## How the pieces fit together
 
-```ini
-[Server]
-Primary = https://your-server.example
-Fallback =
+```
+            ┌────────── shared/ (online code) ──────────┐
+            │                                           │
+   android/ (mobile port)                      mod/ (PC, BepInEx + Harmony)
+            │                                           │
+            └──────────────►  server/  ◄────────────────┘
 ```
 
-`Primary` is tried first and `Fallback` (optional) if it does not answer. **All players in a room must use the same
-server.**
-
-You can host your own for free:
-
-- `server/node` — Node.js server (a free Oracle Cloud VM is enough). `setup.sh` installs everything with HTTPS.
-- `server/cloudflare` — the same protocol on Cloudflare Workers + Durable Objects.
-
-## Build from source
-
-Requirements: the game with BepInEx installed, .NET SDK 8+, and a bash shell (Git Bash).
-
-```bash
-bash build.sh        # writes dist/AdofaiOnlineMod.dll
-```
-
-Nothing from the game is redistributed: the build references the DLLs of your own installation.
+The mobile port compiles `shared/` directly inside the game project; the PC mod compiles the same files together
+with a small plugin that hooks the original game with Harmony.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). It covers only the code in this repository; "A Dance of Fire and Ice" belongs to
+7th Beat Games.
 
 ---
 
 ## Português
 
-Mod **não oficial** de salas online para A Dance of Fire and Ice (PC). Não é afiliado à 7th Beat Games e não
-contém código nem arquivos do jogo.
+Projeto **não oficial**, feito por fã, para **A Dance of Fire and Ice** (7th Beat Games): jogar no **Android** e
+jogar fases personalizadas **online** — no celular, no PC, ou os dois na mesma sala.
 
-### Recursos
+> Sem afiliação com a 7th Beat Games. Este repositório **não contém código, arquivos nem builds do jogo**. Você
+> precisa da sua própria cópia do jogo.
+
+### O que tem no repositório
+
+| Pasta | O que é |
+|---|---|
+| [`mod/`](mod) | **Mod para PC** (plugin BepInEx). Adiciona salas online à versão da Steam. [Guia de instalação](mod/README.md) · [última release](../../releases/latest) |
+| [`android/`](android) | **Port para Android** (controles por toque, botão de pausa na tela, importar/baixar fases, salas online). Veja [`android/README.md`](android/README.md). |
+| [`shared/`](shared) | O código online usado pelo port mobile **e** pelo mod de PC (salas, fantasmas, espectador, chat, modificadores, navegador de fases, telas em inglês e português). |
+| [`server/`](server) | Os servidores de salas: `node` (próprio, por exemplo numa VM gratuita da Oracle) e `cloudflare` (Workers + Durable Objects). Mesmo protocolo. |
+
+### Recursos online (celular e PC)
 
 - Salas de até 4 jogadores: públicas (listadas por região) ou privadas (entra-se com um código)
 - Modo corrida: os outros jogadores aparecem como fantasmas, com o nome acima
 - Modo espectador: entre numa partida em andamento ou continue assistindo depois de terminar
 - Chat da sala
-- Modificadores escolhidos pelo anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade**
-  (de 0.5x a 2x)
-- O anfitrião pode escolher qualquer fase instalada no PC dele, ou uma do ADOFAI.gg / TUF (quem não tiver a fase
-  baixa sozinho)
-- Se a fase não estiver no ADOFAI.gg / TUF, ela é enviada automaticamente ao servidor da sala para todos
-  baixarem (máximo de 150 MB, guardada por 10 minutos)
-- Funciona junto com o port Android do mesmo projeto: PC e celular podem jogar na mesma sala
-
-### Instalação (Windows, Steam)
-
-1. Instale o **BepInEx 5 (x64)**: baixe o `BepInEx_win_x64_5.4.23.x.zip` em
-   <https://github.com/BepInEx/BepInEx/releases> e extraia na pasta do jogo (a que tem o
-   `A Dance of Fire and Ice.exe`). Abra o jogo uma vez para o BepInEx criar as pastas.
-2. Copie o `AdofaiOnlineMod.dll` (do zip da release) para `BepInEx/plugins/`.
-3. (Opcional) Para usar outro servidor, abra o jogo uma vez, feche e edite
-   `BepInEx/config/adofai.port.online.cfg` (veja [Servidores](#servidores)). Todos da sala precisam usar o
-   mesmo servidor.
-4. Abra o jogo e entre no seletor de fases personalizadas: aparecem dois botões no canto superior direito,
-   **Online** e **Fases da comunidade** (o navegador de fases do ADOFAI.gg / TUF).
-
-Para desinstalar, apague o `AdofaiOnlineMod.dll` (ou a pasta `BepInEx`, o `winhttp.dll` e o
-`doorstop_config.ini`).
-
-Testado na versão 26397875 do jogo (Unity 6000.3.25f1) com BepInEx 5.4.23.6. Atualizações do jogo podem quebrar
-mods; ao relatar um problema, informe a versão do jogo e anexe o `BepInEx/LogOutput.log`.
+- Modificadores do anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade** (de 0.5x a 2x)
+- Fases do seu aparelho ou do ADOFAI.gg / TUF (baixadas sozinhas); fases de outras fontes são enviadas
+  automaticamente à sala (máximo de 150 MB, guardadas por 10 minutos)
+- Telas em **inglês e português** (seguem o idioma do jogo)
+- PC e celular podem jogar na mesma sala
 
 ### Servidores
 
-O mod funciona sem configurar nada com os servidores públicos do projeto (uma VM gratuita da Oracle Cloud em São
-Paulo, com a Cloudflare Workers de reserva). São servidores comunitários gratuitos, sem garantia, com limites por
-IP (salas por hora, envios por hora e conexões simultâneas); as fases enviadas para uma sala ficam guardadas só
-por 10 minutos.
+O mod e o port mobile usam, por padrão, os servidores públicos gratuitos do projeto (uma VM gratuita da Oracle Cloud
+em São Paulo, com a Cloudflare Workers de reserva). São servidores comunitários, sem garantia e com limites por IP.
+Você pode hospedar o seu de graça: veja [`server/node`](server/node) e [`server/cloudflare`](server/cloudflare).
+Todos os jogadores de uma sala precisam usar o mesmo servidor.
 
-Para usar outro servidor, edite `BepInEx/config/adofai.port.online.cfg` (criado na primeira execução):
+### Como as partes se encaixam
 
-```ini
-[Server]
-Primary = https://seu-servidor.exemplo
-Fallback =
-```
-
-O `Primary` é tentado primeiro e o `Fallback` (opcional) só se ele não responder. **Todos os jogadores de uma sala
-precisam usar o mesmo servidor.**
-
-Você pode hospedar o seu de graça: `server/node` (servidor Node.js; uma VM gratuita da Oracle basta, e o
-`setup.sh` instala tudo com HTTPS) ou `server/cloudflare` (o mesmo protocolo em Cloudflare Workers).
-
-### Compilar o código
-
-Requisitos: o jogo com o BepInEx instalado, .NET SDK 8+ e um terminal bash (Git Bash). Rode `bash build.sh`; a
-DLL sai em `dist/AdofaiOnlineMod.dll`. Nada do jogo é redistribuído: a compilação usa as DLLs da sua própria
-instalação.
+O port mobile compila o `shared/` dentro do projeto do jogo; o mod de PC compila os mesmos arquivos junto com um
+pequeno plugin que se liga ao jogo original pelo Harmony.
 
 ### Licença
 
-MIT, veja o [LICENSE](LICENSE).
-
-> As telas do mod existem em **inglês e português**: por padrão seguem o idioma do jogo (português se o jogo estiver
-> em português, inglês nos demais). Para forçar um, use `Language = en` ou `pt` em `[General]` no arquivo
-> `BepInEx/config/adofai.port.online.cfg`.
+MIT, veja o [LICENSE](LICENSE). Vale só para o código deste repositório; "A Dance of Fire and Ice" pertence à
+7th Beat Games.
