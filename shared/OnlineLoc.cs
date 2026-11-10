@@ -202,7 +202,7 @@ public static partial class Loc
         ("Velocidade ", "Speed "),
 
         // escolher / enviar fase
-        ("Da comunidade (ADOFAI.gg / TUF)", "From the community (ADOFAI.gg / TUF)"),
+        ("Da comunidade (ADOFAI.gg / TUF)", "Community (ADOFAI.gg / TUF)"),
         ("Buscar nas minhas fases", "Search my levels"),
         ("Você ainda não tem fases. Escolha uma da comunidade.", "You don't have any levels yet. Pick one from the community."),
         ("Nenhuma fase encontrada para ", "No levels found for "),
@@ -226,6 +226,7 @@ public static partial class Loc
         ("Tentar de novo", "Try again"),
         ("Buscar música, artista ou criador", "Search song, artist or creator"),
         ("Carregar mais", "Load more"),
+        ("Fases da comunidade", "Community levels"),
         ("sem vídeo", "no video"),
         ("Fotossensível", "Photosensitive"),
     };
@@ -243,7 +244,9 @@ public static partial class Loc
         (new Regex(@"(\d+)º"), "#$1"),
         (new Regex(@"\b1 queda\b"), "1 death"),
         (new Regex(@"(\d+) quedas"), "$1 deaths"),
-        (new Regex(@"(^|>)por "), "$1by "),
+        (new Regex(@"(^|>|·\s+)por "), "$1by "),
+        (new Regex(@"^Recentes(?=\s|$)"), "Recent"),
+        (new Regex(@"^Populares(?=\s|$)"), "Popular"),
     };
 
     private static (string pt, string en)[] phrases;

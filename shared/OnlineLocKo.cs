@@ -127,7 +127,7 @@ public static partial class Loc
         ["Velocidade "] = "속도 ",
 
         // escolher / enviar fase
-        ["Da comunidade (ADOFAI.gg / TUF)"] = "커뮤니티 레벨 (ADOFAI.gg / TUF)",
+        ["Da comunidade (ADOFAI.gg / TUF)"] = "커뮤니티 (ADOFAI.gg / TUF)",
         ["Buscar nas minhas fases"] = "내 레벨 검색",
         ["Você ainda não tem fases. Escolha uma da comunidade."] = "아직 레벨이 없습니다. 커뮤니티에서 골라 보세요.",
         ["Nenhuma fase encontrada para "] = "다음에 대한 레벨을 찾을 수 없습니다: ",
@@ -151,6 +151,7 @@ public static partial class Loc
         ["Tentar de novo"] = "다시 시도",
         ["Buscar música, artista ou criador"] = "곡, 아티스트 또는 제작자 검색",
         ["Carregar mais"] = "더 보기",
+        ["Fases da comunidade"] = "커뮤니티 레벨",
         ["sem vídeo"] = "영상 없음",
         ["Fotossensível"] = "광과민성 주의",
 
@@ -179,5 +180,7 @@ public static partial class Loc
         "실패 1회",
         "실패 $1회",
         "$1제작: ",
+        "최신",
+        "인기",
     };
 }

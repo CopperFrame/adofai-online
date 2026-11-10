@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace AdofaiOnlineMod
 {
-    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.1")]
+    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.2")]
     public class Plugin : BaseUnityPlugin
     {
         internal static BepInEx.Logging.ManualLogSource Log;
@@ -37,7 +37,7 @@ namespace AdofaiOnlineMod
                 : language == "pt" ? Loc.Mode.Portuguese
                 : language == "ko" ? Loc.Mode.Korean
                 : Loc.Mode.Auto;
-            Log.LogInfo("Language: " + language + " (screens in " + Loc.Language + ")");
+            Log.LogInfo("Language setting: " + language);
             var harmony = new Harmony("adofai.port.online");
             harmony.PatchAll(typeof(Plugin).Assembly);
 
