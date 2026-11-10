@@ -6,6 +6,8 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 > Unofficial fan-made mod. Not affiliated with 7th Beat Games. It contains no game code or assets.
 > **Português:** [leia abaixo](#português). **한국어:** [아래 참고](#한국어).
 
+**Steam guide:** [https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680](https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680)
+
 ## Features
 
 - Rooms with up to 4 players: public (listed by region) or private (join with a code)
