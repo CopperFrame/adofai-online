@@ -23,6 +23,21 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 
 ## Install (Windows, Steam)
 
+### Easy install (recommended)
+
+1. From the [latest release](https://github.com/CopperFrame/adofai-online/releases/latest) download **both**
+   `Install-ADOFAI-Online.bat` and `Install-ADOFAI-Online.ps1` into the same folder.
+2. Close the game and double-click `Install-ADOFAI-Online.bat`.
+   It finds your game, installs BepInEx if needed (a pinned, checksum-verified version), downloads the latest
+   mod, **checks its SHA-256** and puts it in `BepInEx/plugins`. Run it again any time to update.
+   To remove the mod: `Install-ADOFAI-Online.bat --uninstall`.
+3. Start the game, open the custom level selector and click **Online**.
+
+Windows may show a SmartScreen warning for the downloaded files ("More info" → "Run anyway"). The scripts are
+plain text, you can read them first: [`mod/installer`](installer).
+
+### Manual install
+
 1. Install **BepInEx 5 (x64)** — download `BepInEx_win_x64_5.4.23.x.zip` from
    <https://github.com/BepInEx/BepInEx/releases> and extract it into the game folder
    (the folder with `A Dance of Fire and Ice.exe`). Run the game once so BepInEx creates its folders.
@@ -45,6 +60,15 @@ please open an issue with the game version and `BepInEx/LogOutput.log`.
 The mod is a [BepInEx](https://github.com/BepInEx/BepInEx) plugin that uses [Harmony](https://github.com/pardeike/Harmony)
 patches to hook the level start, the fail/restart flow and a few input/audio spots. The online code itself
 (`shared/`, one level up) is the same code used by the Android port, and talks JSON over WebSocket to a small room server.
+
+## Updates and privacy
+
+When the game starts, the mod asks GitHub (`api.github.com`, once) which release is the latest and, if yours is
+older, shows a notice in the custom level selector. Nothing about you is sent (only a standard web request with the
+mod version in the User-Agent). To turn it off, set `CheckForUpdates = false` in
+`BepInEx/config/adofai.port.online.cfg`.
+
+If a game update breaks part of the mod, the same notice tells you which part and where to find a new version.
 
 ## Servers
 
@@ -104,6 +128,21 @@ contém código nem arquivos do jogo.
 - Funciona junto com o port Android do mesmo projeto: PC e celular podem jogar na mesma sala
 
 ### Instalação (Windows, Steam)
+
+#### Instalação fácil (recomendada)
+
+1. Na [última release](https://github.com/CopperFrame/adofai-online/releases/latest), baixe **os dois**:
+   `Install-ADOFAI-Online.bat` e `Install-ADOFAI-Online.ps1`, na mesma pasta.
+2. Feche o jogo e dê dois cliques no `Install-ADOFAI-Online.bat`.
+   Ele acha o jogo, instala o BepInEx se precisar (versão fixa, com verificação), baixa o mod mais novo,
+   **confere o SHA-256** e coloca em `BepInEx/plugins`. Rode de novo quando quiser atualizar.
+   Para remover o mod: `Install-ADOFAI-Online.bat --uninstall`.
+3. Abra o jogo, entre no seletor de fases personalizadas e clique em **Online**.
+
+O Windows pode mostrar um aviso do SmartScreen nos arquivos baixados ("Mais informações" → "Executar assim mesmo").
+Os scripts são texto puro e podem ser lidos antes: [`mod/installer`](installer).
+
+#### Instalação manual
 
 1. Instale o **BepInEx 5 (x64)**: baixe o `BepInEx_win_x64_5.4.23.x.zip` em
    <https://github.com/BepInEx/BepInEx/releases> e extraia na pasta do jogo (a que tem o
@@ -174,6 +213,20 @@ MIT, veja o [LICENSE](../LICENSE).
 - 프로젝트의 Android 포트와 같은 방에서 함께 플레이할 수 있습니다
 
 ### 설치 (Windows, Steam)
+
+#### 간편 설치 (권장)
+
+1. [최신 릴리스](https://github.com/CopperFrame/adofai-online/releases/latest)에서 `Install-ADOFAI-Online.bat`과
+   `Install-ADOFAI-Online.ps1` **두 파일 모두**를 같은 폴더에 받습니다.
+2. 게임을 종료하고 `Install-ADOFAI-Online.bat`을 더블클릭합니다. 게임 폴더를 찾아 BepInEx를 설치하고(필요한 경우),
+   최신 모드를 받아 **SHA-256을 확인**한 뒤 `BepInEx/plugins`에 넣습니다. 업데이트할 때도 다시 실행하면 됩니다.
+   제거하려면 `Install-ADOFAI-Online.bat --uninstall`.
+3. 게임을 실행하고 커스텀 레벨 선택 화면에서 **온라인**을 누릅니다.
+
+Windows SmartScreen 경고가 나올 수 있습니다("추가 정보" → "실행"). 스크립트는 텍스트 파일이므로 먼저 읽어 볼 수 있습니다:
+[`mod/installer`](installer).
+
+#### 수동 설치
 
 1. **BepInEx 5 (x64)** 를 게임 폴더(`A Dance of Fire and Ice.exe`가 있는 폴더)에 압축 해제합니다: <https://github.com/BepInEx/BepInEx/releases>. 게임을 한 번 실행하면 BepInEx가 폴더를 만듭니다.
 2. `AdofaiOnlineMod.dll`을 `BepInEx/plugins/` 폴더에 넣습니다.

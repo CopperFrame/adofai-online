@@ -137,6 +137,13 @@ public static partial class Loc
         ("  (terminou)", "  (finished)"),
         (" da fase", " of the level"),
 
+        // avisos do mod de PC (versão nova / partes que o jogo atual não aceita)
+        ("O jogo foi atualizado e parte do mod não funciona (", "The game was updated and part of the mod does not work ("),
+        ("). Clique para procurar uma versão nova.", "). Click to look for a newer version."),
+        ("Nova versão do mod disponível: ", "New mod version available: "),
+        (" (você tem ", " (you have "),
+        ("). Clique para baixar.", "). Click to download."),
+
         // exigência do jogo original (OfficialAppCheck)
         ("É necessário ter o jogo original", "The original game is required"),
         ("Instale A Dance of Fire and Ice pela Google Play para usar este port.", "Install A Dance of Fire and Ice from Google Play to use this port."),

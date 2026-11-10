@@ -8,10 +8,15 @@ using UnityEngine.UI;
 
 namespace AdofaiOnlineMod
 {
-    [BepInPlugin("adofai.port.online", "ADOFAI Online", "0.2.2")]
+    [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
+        public const string Version = "0.2.3";
         internal static BepInEx.Logging.ManualLogSource Log;
+
+        /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>
+        internal static readonly List<string> PatchProblems = new List<string>();
+        internal static BepInEx.Configuration.ConfigEntry<bool> CheckForUpdates;
 
         private void Awake()
         {
@@ -38,27 +43,60 @@ namespace AdofaiOnlineMod
                 : language == "ko" ? Loc.Mode.Korean
                 : Loc.Mode.Auto;
             Log.LogInfo("Language setting: " + language);
+            CheckForUpdates = Config.Bind("General", "CheckForUpdates", true,
+                "Ask GitHub (api.github.com) once at startup whether a newer version of the mod exists, and show a notice in the level selector. No personal data is sent.");
+
             var harmony = new Harmony("adofai.port.online");
-            harmony.PatchAll(typeof(Plugin).Assembly);
+            // um patch por vez: se o jogo mudar e um deles falhar, o resto continua e o jogador é avisado na tela
+            foreach (var type in AccessTools.GetTypesFromAssembly(typeof(Plugin).Assembly))
+            {
+                if (type.GetCustomAttributes(typeof(HarmonyPatch), true).Length == 0)
+                {
+                    continue;
+                }
+                try
+                {
+                    harmony.CreateClassProcessor(type).Patch();
+                }
+                catch (System.Exception e)
+                {
+                    PatchProblems.Add(type.Name);
+                    Log.LogError("patch " + type.Name + " falhou: " + e.Message);
+                }
+            }
 
             // a espera do início da fase (corrotina) e o recomeço automático depois de cair
             var anyValid = AccessTools.Method(typeof(scrPlayerManager), "AnyValidInputWasTriggered");
-            PatchAnyValid(harmony, AccessTools.EnumeratorMoveNext(AccessTools.Method(typeof(scrController), "WaitForStartCo")),
+            PatchAnyValid(harmony, "WaitForStartCo", () => AccessTools.EnumeratorMoveNext(AccessTools.Method(typeof(scrController), "WaitForStartCo")),
                 AccessTools.Method(typeof(Hooks), nameof(Hooks.AnyOrOnlineStart)), anyValid);
-            PatchAnyValid(harmony, AccessTools.Method(typeof(scrController), "Fail2_Update"),
+            PatchAnyValid(harmony, "Fail2_Update", () => AccessTools.Method(typeof(scrController), "Fail2_Update"),
                 AccessTools.Method(typeof(Hooks), nameof(Hooks.AnyOrAutoRestart)), anyValid);
+
+            if (PatchProblems.Count > 0)
+            {
+                Log.LogWarning("Partes do mod que não funcionam nesta versão do jogo: " + string.Join(", ", PatchProblems));
+            }
+            gameObject.AddComponent<UpdateChecker>();
         }
 
-        private static void PatchAnyValid(Harmony harmony, MethodBase target, MethodInfo replacement, MethodInfo anyValid)
+        private static void PatchAnyValid(Harmony harmony, string name, System.Func<MethodBase> findTarget, MethodInfo replacement, MethodInfo anyValid)
         {
-            if (target == null)
+            try
             {
-                Log.LogError("método alvo não encontrado para " + replacement.Name);
-                return;
+                MethodBase target = findTarget();
+                if (target == null || anyValid == null)
+                {
+                    throw new System.Exception("método alvo não encontrado");
+                }
+                var transpiler = new HarmonyMethod(typeof(Hooks), nameof(Hooks.Replace));
+                Hooks.Pending[target] = (anyValid, replacement);
+                harmony.Patch(target, transpiler: transpiler);
             }
-            var transpiler = new HarmonyMethod(typeof(Hooks), nameof(Hooks.Replace));
-            Hooks.Pending[target] = (anyValid, replacement);
-            harmony.Patch(target, transpiler: transpiler);
+            catch (System.Exception e)
+            {
+                PatchProblems.Add(name);
+                Log.LogError("patch " + name + " falhou: " + e.Message);
+            }
         }
     }
 
@@ -84,6 +122,10 @@ namespace AdofaiOnlineMod
                 }
             }
             Plugin.Log.LogInfo(original.DeclaringType?.Name + "." + original.Name + ": " + n + " chamada(s) trocada(s)");
+            if (n == 0)
+            {
+                Plugin.PatchProblems.Add(original.Name); // o jogo mudou: a chamada que trocamos não existe mais
+            }
         }
 
         // partida online: a fase começa na hora marcada pelo anfitrião, não com um toque
@@ -211,6 +253,9 @@ namespace AdofaiOnlineMod
     internal class EntryButtons : MonoBehaviour
     {
         private GameObject root;
+        private GameObject notice;
+        private Text noticeText;
+        private string shownNotice;
 
         private void Start()
         {
@@ -220,14 +265,62 @@ namespace AdofaiOnlineMod
             PortUi.Place((RectTransform)online.transform, new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(220f, 74f), new Vector2(1f, 1f));
             var levels = PortUi.MakeStoneButton(canvas, "Fases da comunidade", 26, LevelBrowser.Open);
             PortUi.Place((RectTransform)levels.transform, new Vector2(1f, 1f), new Vector2(-24f, -108f), new Vector2(360f, 74f), new Vector2(1f, 1f));
+
+            // aviso no alto, à esquerda, abaixo do título: versão nova do mod ou partes do mod que o jogo atual não aceita
+            var panel = PortUi.MakePanel(canvas, "Notice", new Color(0.09f, 0.07f, 0.14f, 0.92f));
+            notice = panel.gameObject;
+            PortUi.Place(panel.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -120f), new Vector2(760f, 96f), new Vector2(0f, 1f)); // embaixo ficam os nomes dos portais
+            noticeText = PortUi.MakeText(panel.transform, "", 28, Color.white);
+            noticeText.alignment = TextAnchor.MiddleLeft;
+            noticeText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            PortUi.Stretch(noticeText.rectTransform);
+            noticeText.rectTransform.offsetMin = new Vector2(24f, 6f);
+            noticeText.rectTransform.offsetMax = new Vector2(-24f, -6f);
+            panel.raycastTarget = true;
+            var btn = notice.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() => Application.OpenURL(UpdateChecker.PageUrl));
+            notice.SetActive(false);
+        }
+
+        private string CurrentNotice()
+        {
+            if (Plugin.PatchProblems.Count > 0)
+            {
+                return "O jogo foi atualizado e parte do mod não funciona (" + string.Join(", ", Plugin.PatchProblems.ToArray()) + "). Clique para procurar uma versão nova.";
+            }
+            if (UpdateChecker.Available)
+            {
+                return "Nova versão do mod disponível: " + UpdateChecker.LatestVersion + " (você tem " + Plugin.Version + "). Clique para baixar.";
+            }
+            return null;
         }
 
         private void Update()
         {
-            if (root != null)
+            if (root == null)
             {
-                root.SetActive(!OnlineScreen.IsOpen && !LevelBrowser.IsOpen);
+                return;
             }
+            bool open = OnlineScreen.IsOpen || LevelBrowser.IsOpen;
+            // os botões ficam atrás das telas do online; o aviso também
+            foreach (Transform child in root.transform)
+            {
+                if (child.gameObject != notice)
+                {
+                    child.gameObject.SetActive(!open);
+                }
+            }
+            string text = CurrentNotice();
+            if (text != shownNotice)
+            {
+                shownNotice = text;
+                if (text != null)
+                {
+                    PortUi.SetText(noticeText, text);
+                }
+            }
+            notice.SetActive(text != null && !open);
         }
     }
 }

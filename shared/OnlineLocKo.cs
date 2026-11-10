@@ -155,6 +155,13 @@ public static partial class Loc
         ["sem vídeo"] = "영상 없음",
         ["Fotossensível"] = "광과민성 주의",
 
+        // avisos do mod de PC
+        ["O jogo foi atualizado e parte do mod não funciona ("] = "게임이 업데이트되어 모드의 일부가 동작하지 않습니다 (",
+        ["). Clique para procurar uma versão nova."] = "). 클릭하여 새 버전을 찾아보세요.",
+        ["Nova versão do mod disponível: "] = "모드 새 버전이 있습니다: ",
+        [" (você tem "] = " (현재 ",
+        ["). Clique para baixar."] = "). 클릭하여 다운로드하세요.",
+
         // exigência do jogo original (OfficialAppCheck)
         ["É necessário ter o jogo original"] = "정품 게임이 필요합니다",
         ["Instale A Dance of Fire and Ice pela Google Play para usar este port."] = "이 포트를 사용하려면 Google Play에서 A Dance of Fire and Ice를 설치하세요.",
