@@ -6,7 +6,7 @@ custom levels together **online** — on the phone, on PC, or both in the same r
 > Not affiliated with, or endorsed by, 7th Beat Games. This repository contains **no game code, assets or builds**.
 > You need your own copy of the game. **Português:** [leia abaixo](#português).
 
-**Steam guide (install and use):** [https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680](https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680)
+**Steam guide (install and use):** [English](https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680) · [Português](https://steamcommunity.com/sharedfiles/filedetails/?id=3837145070)
 
 ## What's in this repository
 
@@ -64,7 +64,7 @@ jogar fases personalizadas **online** — no celular, no PC, ou os dois na mesma
 > Sem afiliação com a 7th Beat Games. Este repositório **não contém código, arquivos nem builds do jogo**. Você
 > precisa da sua própria cópia do jogo.
 
-**Guia na Steam (instalação e uso):** [https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680](https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680)
+**Guia na Steam (instalação e uso):** [Português](https://steamcommunity.com/sharedfiles/filedetails/?id=3837145070) · [English](https://steamcommunity.com/sharedfiles/filedetails/?id=3837129680)
 
 ### O que tem no repositório
 
