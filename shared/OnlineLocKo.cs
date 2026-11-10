@@ -9,6 +9,9 @@ public static partial class Loc
     {
         // palavras soltas
         ["Fase"] = "레벨",
+        ["Todas"] = "전체",
+        ["Locais"] = "로컬",
+        ["Oficina"] = "창작마당",
         ["Sala"] = "방",
         ["Online"] = "온라인",
         ["Pronto"] = "준비",

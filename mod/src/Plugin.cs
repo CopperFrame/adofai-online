@@ -11,7 +11,7 @@ namespace AdofaiOnlineMod
     [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Version = "0.2.4";
+        public const string Version = "0.2.5";
         internal static BepInEx.Logging.ManualLogSource Log;
 
         /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>

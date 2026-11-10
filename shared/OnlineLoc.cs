@@ -70,6 +70,9 @@ public static partial class Loc
     private static readonly Dictionary<string, string> Exact = new Dictionary<string, string>
     {
         ["Fase"] = "Level",
+        ["Todas"] = "All",
+        ["Locais"] = "Local",
+        ["Oficina"] = "Workshop",
         ["Sala"] = "Room",
         ["Online"] = "Online",
         ["Pronto"] = "Ready",

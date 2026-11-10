@@ -1241,7 +1241,28 @@ public class OnlineScreen : MonoBehaviour
         levelPicker.transform.SetAsLastSibling();
         levelPickerSearch.text = "";
         FillLevelPicker("");
+        if (scnCLS.instance != null)
+        {
+            StartCoroutine(IndexThenFillPicker());
+        }
     }
+
+    // com a tela inicial do seletor aberta o jogo ainda não leu as pastas: lê (fases locais e da oficina) e atualiza a lista
+    private IEnumerator IndexThenFillPicker()
+    {
+        yield return scnCLS.instance.EnsureLevelsIndexed();
+        if (levelPicker != null && levelPicker.activeSelf)
+        {
+            FillLevelPicker(levelPickerSearch.text);
+        }
+    }
+
+    private int pickerFilter; // 0 = todas, 1 = locais, 2 = da oficina
+    private Button[] pickerChips;
+    private Text pickerCount;
+    private int pickerGen;
+    private const int MaxPickerRows = 300;
+    private static readonly Dictionary<string, Texture2D> ThumbCache = new Dictionary<string, Texture2D>();
 
     private void BuildLevelPicker()
     {
@@ -1251,25 +1272,42 @@ public class OnlineScreen : MonoBehaviour
         levelPicker.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
         levelPicker.GetComponent<Button>().onClick.AddListener(() => levelPicker.SetActive(false));
 
-        var box = MakePanel(levelPicker.transform, "Box", new Color(0.09f, 0.08f, 0.13f, 1f)).rectTransform;
+        // caixa opaca: a de pedra das outras telas é translúcida e deixava a sala aparecer por trás da lista
+        var box = PortUi.MakePanel(levelPicker.transform, "PickerBox", new Color(0.07f, 0.065f, 0.1f, 0.98f)).rectTransform;
         box.anchorMin = new Vector2(0.5f, 0.5f);
         box.anchorMax = new Vector2(0.5f, 0.5f);
         box.sizeDelta = new Vector2(1300f, 800f);
         box.gameObject.AddComponent<Button>().transition = Selectable.Transition.None; // toques na caixa não fecham
 
         var title = levelPickerTitle = MakeText(box, "Escolher fase", 44, Color.white);
-        Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -20f), new Vector2(600f, 80f));
+        Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -20f), new Vector2(420f, 80f));
+        pickerCount = MakeText(box, "", 28, Muted);
+        Place(pickerCount.rectTransform, new Vector2(0f, 1f), new Vector2(470f, -20f), new Vector2(380f, 80f));
         var community = MakeButton(box, "Da comunidade (ADOFAI.gg / TUF)", 32, PickCommunityLevel, light: true);
         Place((RectTransform)community.transform, new Vector2(1f, 1f), new Vector2(-30f, -20f), new Vector2(560f, 80f));
 
+        // busca à esquerda; filtros (todas / locais / da oficina) à direita
         levelPickerSearch = MakeInputField(box, "Buscar nas minhas fases", 30f, 34);
         var srt = (RectTransform)levelPickerSearch.transform;
         srt.anchorMin = new Vector2(0f, 1f);
         srt.anchorMax = new Vector2(1f, 1f);
         srt.pivot = new Vector2(0.5f, 1f);
         srt.offsetMin = new Vector2(30f, -200f);
-        srt.offsetMax = new Vector2(-30f, -116f);
+        srt.offsetMax = new Vector2(-30f - 3 * 160f, -116f);
         levelPickerSearch.onValueChanged.AddListener(FillLevelPicker);
+        string[] chipNames = { "Todas", "Locais", "Oficina" };
+        pickerChips = new Button[3];
+        for (int k = 0; k < 3; k++)
+        {
+            int filter = k;
+            var chip = MakeButton(box, chipNames[k], 28, () =>
+            {
+                pickerFilter = filter;
+                FillLevelPicker(levelPickerSearch.text);
+            });
+            Place((RectTransform)chip.transform, new Vector2(1f, 1f), new Vector2(-30f - (2 - k) * 160f, -116f), new Vector2(150f, 84f), new Vector2(1f, 1f));
+            pickerChips[k] = chip;
+        }
 
         var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(ScrollRect));
         scrollGo.transform.SetParent(box, false);
@@ -1300,17 +1338,36 @@ public class OnlineScreen : MonoBehaviour
         scroll.content = levelPickerList;
     }
 
+    private static string PickerIconFile(ADOFAI.LevelDataCLS lv)
+    {
+        try
+        {
+            return !string.IsNullOrEmpty(lv.previewIcon) ? lv.previewIcon : lv.previewImage;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     private void FillLevelPicker(string search)
     {
         ClearChildren(levelPickerList);
-        var levels = scnCLS.instance != null
-            ? scnCLS.instance.GetLocalLevels()
-            : new List<KeyValuePair<string, ADOFAI.LevelDataCLS>>();
+        pickerGen++;
+        var cls = scnCLS.instance;
+        var levels = cls != null ? cls.GetLocalLevels() : new List<KeyValuePair<string, ADOFAI.LevelDataCLS>>();
         search = (search ?? "").Trim();
-        int shown = 0;
-        foreach (var item in levels.OrderBy(l => StripTags(l.Value.title)))
+        var thumbs = new List<KeyValuePair<RawImage, string>>();
+        int matching = 0, drawn = 0;
+        string lastLetter = null;
+        foreach (var item in levels.OrderBy(l => StripTags(l.Value.title), StringComparer.CurrentCultureIgnoreCase))
         {
             var lv = item.Value;
+            bool workshop = ulong.TryParse(item.Key, out _); // as fases da oficina têm o número do item como chave
+            if ((pickerFilter == 1 && workshop) || (pickerFilter == 2 && !workshop))
+            {
+                continue;
+            }
             string title = StripTags(lv.title);
             string artist = StripTags(lv.artist);
             string author = StripTags(lv.author);
@@ -1318,25 +1375,74 @@ public class OnlineScreen : MonoBehaviour
             {
                 continue;
             }
-            if (++shown > 150)
+            matching++;
+            if (drawn >= MaxPickerRows)
             {
-                break; // lista grande: a busca filtra o resto
+                continue; // lista enorme: a busca e os filtros chegam no resto
+            }
+            drawn++;
+            if (search.Length == 0)
+            {
+                string letter = title.Length > 0 && char.IsLetter(title[0]) ? char.ToUpperInvariant(title[0]).ToString() : "#";
+                if (letter != lastLetter)
+                {
+                    lastLetter = letter;
+                    var head = MakeText(levelPickerList, letter, 28, Muted);
+                    head.gameObject.AddComponent<LayoutElement>().preferredHeight = 40f;
+                }
             }
             string hash = lv.Hash;
-            var row = MakeButton(levelPickerList, "", 0, () =>
+            // botão simples: o de pedra do jogo tem formato fixo e não serve para uma linha larga
+            var row = PortUi.MakeButton(levelPickerList, "", 0, () =>
             {
                 levelPicker.SetActive(false);
                 StartCoroutine(PickLocalLevel(hash, title, artist, author, pickingForQueue));
             });
             row.GetComponent<Image>().color = Card;
-            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 96f;
-            var t = MakeText(row.transform, title + (artist.Length > 0 ? $"  <color=#ffffff88>{artist}</color>" : "") +
-                                            (author.Length > 0 ? $"   <size=24><color=#ffffff66>por {author}</color></size>" : ""), 34, Color.white);
+            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 108f;
+
+            // arte da fase (ícone ou imagem de prévia da pasta dela), carregada aos poucos; antes disso, a cor da fase
+            var thumbGo = new GameObject("Thumb", typeof(RectTransform), typeof(RawImage));
+            thumbGo.transform.SetParent(row.transform, false);
+            Place((RectTransform)thumbGo.transform, new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(84f, 84f), new Vector2(0f, 0.5f));
+            var raw = thumbGo.GetComponent<RawImage>();
+            raw.raycastTarget = false;
+            Color tint = Color.black;
+            try
+            {
+                tint = lv.previewIconColor;
+            }
+            catch (Exception)
+            {
+            }
+            raw.color = Color.Lerp(new Color(tint.r, tint.g, tint.b, 1f), new Color(0.25f, 0.25f, 0.3f, 1f), 0.45f);
+            string dir = cls != null ? cls.GetLevelDir(item.Key) : null;
+            string file = PickerIconFile(lv);
+            if (!string.IsNullOrEmpty(dir) && !string.IsNullOrEmpty(file))
+            {
+                thumbs.Add(new KeyValuePair<RawImage, string>(raw, System.IO.Path.Combine(dir, file)));
+            }
+
+            string sub = artist + (author.Length > 0 ? (artist.Length > 0 ? "  ·  " : "") + "por " + author : "");
+            // duas linhas separadas: título em cima, artista e autor embaixo
+            var t = MakeText(row.transform, title, 34, Color.white);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.verticalOverflow = VerticalWrapMode.Truncate;
             Stretch(t.rectTransform);
-            t.rectTransform.offsetMin = new Vector2(26f, 0f);
-            t.rectTransform.offsetMax = new Vector2(-26f, 0f);
+            t.rectTransform.offsetMin = new Vector2(116f, 54f);
+            t.rectTransform.offsetMax = new Vector2(-190f, -4f);
+            var subText = MakeText(row.transform, sub, 26, new Color(1f, 1f, 1f, 0.55f));
+            subText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            subText.verticalOverflow = VerticalWrapMode.Truncate;
+            Stretch(subText.rectTransform);
+            subText.rectTransform.offsetMin = new Vector2(116f, 4f);
+            subText.rectTransform.offsetMax = new Vector2(-190f, -56f);
+
+            var badge = MakeText(row.transform, workshop ? "Oficina" : "Local", 24, workshop ? new Color(0.5f, 0.7f, 1f, 1f) : new Color(1f, 1f, 1f, 0.55f));
+            badge.alignment = TextAnchor.MiddleRight;
+            Place(badge.rectTransform, new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(160f, 40f), new Vector2(1f, 0.5f));
         }
-        if (shown == 0)
+        if (drawn == 0)
         {
             var empty = MakeText(levelPickerList, levels.Count == 0
                 ? "Você ainda não tem fases. Escolha uma da comunidade."
@@ -1344,6 +1450,68 @@ public class OnlineScreen : MonoBehaviour
             empty.alignment = TextAnchor.MiddleCenter;
             empty.gameObject.AddComponent<LayoutElement>().preferredHeight = 120f;
         }
+        SetText(pickerCount, levels.Count == 0 ? "" : matching + " de " + levels.Count + " fases");
+        for (int k = 0; k < pickerChips.Length; k++)
+        {
+            SetSelected(pickerChips[k], k == pickerFilter, DarkTile);
+        }
+        if (thumbs.Count > 0)
+        {
+            StartCoroutine(LoadPickerThumbs(thumbs, pickerGen));
+        }
+    }
+
+    // lê as imagens uma de cada vez e guarda uma versão pequena (quadrada, cortada no centro): fases têm imagens grandes
+    private IEnumerator LoadPickerThumbs(List<KeyValuePair<RawImage, string>> jobs, int gen)
+    {
+        foreach (var job in jobs)
+        {
+            if (gen != pickerGen || levelPicker == null || !levelPicker.activeSelf)
+            {
+                yield break;
+            }
+            Texture2D tex;
+            if (!ThumbCache.TryGetValue(job.Value, out tex))
+            {
+                tex = null;
+                if (System.IO.File.Exists(job.Value))
+                {
+                    using (var req = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(new Uri(job.Value).AbsoluteUri, true))
+                    {
+                        yield return req.SendWebRequest();
+                        if (req.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+                        {
+                            var src = UnityEngine.Networking.DownloadHandlerTexture.GetContent(req);
+                            tex = Thumbnail(src, 160);
+                            Destroy(src);
+                        }
+                    }
+                }
+                ThumbCache[job.Value] = tex; // null = sem imagem utilizável: não tenta de novo
+            }
+            if (tex != null && job.Key != null)
+            {
+                job.Key.texture = tex;
+                job.Key.color = Color.white;
+            }
+        }
+    }
+
+    private static Texture2D Thumbnail(Texture2D src, int size)
+    {
+        var rt = RenderTexture.GetTemporary(size, size, 0, RenderTextureFormat.ARGB32);
+        float aspect = (float)src.width / Mathf.Max(1, src.height);
+        var scale = aspect > 1f ? new Vector2(1f / aspect, 1f) : new Vector2(1f, aspect);
+        var offset = new Vector2((1f - scale.x) / 2f, (1f - scale.y) / 2f);
+        Graphics.Blit(src, rt, scale, offset);
+        var previous = RenderTexture.active;
+        RenderTexture.active = rt;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.ReadPixels(new Rect(0f, 0f, size, size), 0, 0);
+        tex.Apply(false, true);
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(rt);
+        return tex;
     }
 
     // fase que o anfitrião já tem: procura o link no ADOFAI.gg/TUF para quem não tiver poder baixar

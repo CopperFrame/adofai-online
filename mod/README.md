@@ -16,7 +16,7 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 - Room chat
 - Host-selected modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
 - The host can pick any level installed on their PC, or one from ADOFAI.gg / TUF (players who don't have it
-  download it automatically)
+  download it automatically). The picker lists your local **and Steam Workshop** levels with their artwork, with search and All / Local / Workshop filters
 - **Level queue:** the host can line up to 8 levels; when a match ends, the next one is picked automatically
 - If the level is not on ADOFAI.gg / TUF, it is uploaded to the room server automatically so everyone can
   download it (max 150 MB, kept for 10 minutes)
@@ -133,7 +133,7 @@ contém código nem arquivos do jogo.
 - Modificadores escolhidos pelo anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade**
   (de 0.5x a 2x)
 - O anfitrião pode escolher qualquer fase instalada no PC dele, ou uma do ADOFAI.gg / TUF (quem não tiver a fase
-  baixa sozinho)
+  baixa sozinho). O seletor lista suas fases locais **e da oficina do Steam** com a arte de cada uma, com busca e filtros Todas / Locais / Oficina
 - **Fila de fases:** o anfitrião pode enfileirar até 8 fases; quando a partida acaba, a próxima entra sozinha
 - Se a fase não estiver no ADOFAI.gg / TUF, ela é enviada automaticamente ao servidor da sala para todos
   baixarem (máximo de 150 MB, guardada por 10 minutos)

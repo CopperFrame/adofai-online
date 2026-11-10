@@ -84,6 +84,42 @@ namespace AdofaiOnlineMod
             return null;
         }
 
+        public static string GetLevelDir(this scnCLS cls, string key)
+        {
+            LocalLevelEntries(cls, out var dirs);
+            return dirs.TryGetValue(key, out string dir) ? dir : null;
+        }
+
+        private static readonly MethodInfo ScanLevelsMethod = AccessTools.Method(typeof(scnCLS), "ScanLevels");
+        private static bool indexingLevels;
+
+        /// <summary>
+        /// O jogo só lê as pastas de fases (locais e da oficina do Steam) ao entrar numa categoria; com a tela inicial do
+        /// seletor aberta a lista está vazia. Lê as pastas sem mexer na tela, para o online enxergar as fases instaladas.
+        /// </summary>
+        public static IEnumerator EnsureLevelsIndexed(this scnCLS cls)
+        {
+            if (ScanLevelsMethod == null || cls.featuredLevelsMode || indexingLevels || cls.GetLocalLevels().Count > 0)
+            {
+                yield break;
+            }
+            indexingLevels = true;
+            System.Threading.Tasks.Task scan = null;
+            try
+            {
+                scan = (System.Threading.Tasks.Task)ScanLevelsMethod.Invoke(cls, new object[] { System.Threading.CancellationToken.None });
+            }
+            catch (System.Exception e)
+            {
+                Plugin.Log.LogWarning("Não deu para ler as fases instaladas: " + e.Message);
+            }
+            while (scan != null && !scan.IsCompleted)
+            {
+                yield return null;
+            }
+            indexingLevels = false;
+        }
+
         public static List<KeyValuePair<string, LevelDataCLS>> GetLocalLevels(this scnCLS cls)
         {
             var list = new List<KeyValuePair<string, LevelDataCLS>>();

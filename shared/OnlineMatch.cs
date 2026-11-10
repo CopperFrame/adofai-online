@@ -237,6 +237,12 @@ public class OnlineMatch : MonoBehaviour
         string source = level.Value<string>("source");
         string hash = level.Value<string>("hash");
 
+        // as fases instaladas (inclusive as da oficina) só entram na lista depois que o jogo lê as pastas
+        if (scnCLS.instance != null)
+        {
+            yield return scnCLS.instance.EnsureLevelsIndexed();
+        }
+
         // 1) já tenho a fase (mesmo hash nas minhas fases do CLS)?
         string path = !string.IsNullOrEmpty(hash) && scnCLS.instance != null ? scnCLS.instance.FindLevelFileByHash(hash) : null;
 
