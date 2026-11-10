@@ -91,6 +91,8 @@ public static partial class Loc
         ["Conectando…"] = "Connecting…",
         ["vídeo"] = "video",
         ["Jogador"] = "Player",
+        ["Opções"] = "Options",
+        ["Idioma"] = "Language",
         ["Sala de "] = "Room by ",
     };
 
@@ -143,6 +145,18 @@ public static partial class Loc
         ("Nova versão do mod disponível: ", "New mod version available: "),
         (" (você tem ", " (you have "),
         ("). Clique para baixar.", "). Click to download."),
+
+        // tela de opções
+        ("Automático (idioma do jogo)", "Automatic (game language)"),
+        ("Servidor principal", "Main server"),
+        ("Servidor de reserva", "Backup server"),
+        ("Restaurar servidores padrão", "Restore default servers"),
+        ("Todos da sala precisam usar o mesmo servidor.", "Everyone in a room must use the same server."),
+        ("Verificar atualizações do mod: Sim", "Check for mod updates: Yes"),
+        ("Verificar atualizações do mod: Não", "Check for mod updates: No"),
+        ("Salvar e fechar", "Save and close"),
+        ("Servidor salvo. Atualizando as salas…", "Server saved. Refreshing the rooms…"),
+        ("Endereço inválido: use https://…", "Invalid address: use https://…"),
 
         // exigência do jogo original (OfficialAppCheck)
         ("É necessário ter o jogo original", "The original game is required"),
@@ -310,8 +324,17 @@ public static partial class Loc
 
     // ---- tradução automática dos componentes Text das telas do online
 
+    private sealed class Entry
+    {
+        public string source; // texto original (português), como o código escreveu
+        public string shown;  // o que está na tela agora
+    }
+
     private static readonly List<Transform> Roots = new List<Transform>();
     private static readonly List<Text> Scratch = new List<Text>();
+    private static readonly Dictionary<Text, Entry> Entries = new Dictionary<Text, Entry>();
+    private static Lang lastLang = (Lang)(-1);
+    private static int frames;
     private static bool hooked;
 
     /// <summary>Registra a raiz de uma tela (canvas): todos os Text dela passam a ser traduzidos.</summary>
@@ -327,9 +350,23 @@ public static partial class Loc
 
     private static void TranslateAll()
     {
-        if (Language == Lang.Portuguese)
+        Lang lang = Language;
+        bool changed = lang != lastLang;
+        lastLang = lang;
+        if (++frames % 600 == 0)
         {
-            return;
+            var dead = new List<Text>();
+            foreach (var key in Entries.Keys)
+            {
+                if (key == null)
+                {
+                    dead.Add(key);
+                }
+            }
+            foreach (var key in dead)
+            {
+                Entries.Remove(key);
+            }
         }
         for (int i = Roots.Count - 1; i >= 0; i--)
         {
@@ -351,10 +388,32 @@ public static partial class Loc
                 {
                     continue; // o que o jogador digita não se traduz
                 }
-                string en = T(t.text);
-                if (en != t.text)
+                string current = t.text;
+                Entries.TryGetValue(t, out Entry e);
+                string source;
+                if (e != null && current == e.shown)
                 {
-                    PortUi.SetText(t, en); // também escolhe a fonte (coreano precisa de uma fonte com hangul)
+                    if (!changed)
+                    {
+                        continue;
+                    }
+                    source = e.source; // trocou o idioma: parte do original
+                }
+                else
+                {
+                    source = current; // texto novo, ou trocado pelo código: é o original
+                }
+                string want = T(source);
+                if (e == null)
+                {
+                    e = new Entry();
+                    Entries[t] = e;
+                }
+                e.source = source;
+                e.shown = want;
+                if (current != want)
+                {
+                    PortUi.SetText(t, want); // também escolhe a fonte (coreano precisa de uma fonte com hangul)
                 }
             }
             Scratch.Clear();

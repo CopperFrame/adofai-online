@@ -50,6 +50,7 @@ plain text, you can read them first: [`mod/installer`](installer).
    (Portuguese or Korean if the game is in one of those, English otherwise). To force one, set `Language = en`, `pt` or `ko` in
    `BepInEx/config/adofai.port.online.cfg` (section `[General]`).
 
+   You can also change the language and servers without editing any file: **Online → Options** (keyboard/controller: Tab, arrows, Enter; Esc to close).
 To uninstall: delete `AdofaiOnlineMod.dll` (or the whole `BepInEx` folder, `winhttp.dll`, `doorstop_config.ini`).
 
 Tested with game build 26397875 (Unity 6000.3.25f1) and BepInEx 5.4.23.6. Game updates can break mods;

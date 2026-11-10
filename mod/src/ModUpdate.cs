@@ -18,7 +18,7 @@ namespace AdofaiOnlineMod
 
         private IEnumerator Start()
         {
-            if (Plugin.CheckForUpdates == null || !Plugin.CheckForUpdates.Value)
+            if (!OnlineOptions.CheckForUpdates)
             {
                 yield break;
             }

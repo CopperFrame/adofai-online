@@ -34,6 +34,8 @@ public static partial class Loc
         ["Conectando…"] = "연결 중…",
         ["vídeo"] = "영상",
         ["Jogador"] = "플레이어",
+        ["Opções"] = "옵션",
+        ["Idioma"] = "언어",
         ["Sala de "] = "방: ",
 
         // cliente e servidor
@@ -161,6 +163,18 @@ public static partial class Loc
         ["Nova versão do mod disponível: "] = "모드 새 버전이 있습니다: ",
         [" (você tem "] = " (현재 ",
         ["). Clique para baixar."] = "). 클릭하여 다운로드하세요.",
+
+        // tela de opções
+        ["Automático (idioma do jogo)"] = "자동 (게임 언어)",
+        ["Servidor principal"] = "기본 서버",
+        ["Servidor de reserva"] = "예비 서버",
+        ["Restaurar servidores padrão"] = "기본 서버로 복원",
+        ["Todos da sala precisam usar o mesmo servidor."] = "같은 방의 모든 플레이어는 같은 서버를 써야 합니다.",
+        ["Verificar atualizações do mod: Sim"] = "모드 업데이트 확인: 예",
+        ["Verificar atualizações do mod: Não"] = "모드 업데이트 확인: 아니요",
+        ["Salvar e fechar"] = "저장 후 닫기",
+        ["Servidor salvo. Atualizando as salas…"] = "서버를 저장했습니다. 방을 새로고침합니다…",
+        ["Endereço inválido: use https://…"] = "잘못된 주소입니다. https://… 형식을 사용하세요.",
 
         // exigência do jogo original (OfficialAppCheck)
         ["É necessário ter o jogo original"] = "정품 게임이 필요합니다",

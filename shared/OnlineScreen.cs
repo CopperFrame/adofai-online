@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using static PortUi;
 
@@ -63,6 +64,14 @@ public class OnlineScreen : MonoBehaviour
     private RectTransform playerList;
     private Text levelText;
     private Button chooseLevelButton;
+    private Button optionsButton;
+    private GameObject optionsView;
+    private Button languageButton;
+    private Button updatesButton;
+    private Button resetServersButton;
+    private InputField primaryField;
+    private InputField fallbackField;
+    private Selectable focus; // item marcado pela navegação por teclado
     private Button immortalButton;
     private Button speedButton;
     private Text modsText;
@@ -80,6 +89,7 @@ public class OnlineScreen : MonoBehaviour
         }
         var go = new GameObject("OnlineScreen");
         instance = go.AddComponent<OnlineScreen>();
+        OnlineOptions.ApplyLanguage(); // idioma escolhido nas opções (no port: PlayerPrefs; padrão português)
         instance.Build();
         if (openOnArrival)
         {
@@ -217,6 +227,7 @@ public class OnlineScreen : MonoBehaviour
             toast.SetActive(false);
         }
         AutoRefreshRooms();
+        HandleKeyboard();
         float ping = client.pingMs;
         string p = client.state == OnlineClient.State.InRoom && ping >= 0f ? $"{ping:0} ms" : "";
         if (pingText.text != p)
@@ -432,9 +443,14 @@ public class OnlineScreen : MonoBehaviour
         pingText.alignment = TextAnchor.MiddleRight;
         Place(pingText.rectTransform, new Vector2(1f, 1f), new Vector2(-40f, -18f), new Vector2(300f, 92f));
 
+        // opções (idioma, servidores...): só na vista de salas, no canto de cima à direita
+        optionsButton = MakeButton(panel.transform, "Opções", 30, ShowOptions);
+        Place((RectTransform)optionsButton.transform, new Vector2(1f, 1f), new Vector2(-30f, -22f), new Vector2(210f, 72f), new Vector2(1f, 1f));
+
         BuildLobbyView();
         BuildRoomView();
         BuildRegionMenu();
+        BuildOptions();
 
         // aviso temporário no rodapé
         var pill = NewRect("Toast", panel.transform);
@@ -694,6 +710,11 @@ public class OnlineScreen : MonoBehaviour
         lobbyView.SetActive(!inRoom);
         roomView.SetActive(inRoom);
         regionMenu.SetActive(false);
+        optionsButton.gameObject.SetActive(!inRoom);
+        if (optionsView != null)
+        {
+            optionsView.SetActive(false);
+        }
         if (levelPicker != null)
         {
             levelPicker.SetActive(false);
@@ -1115,6 +1136,11 @@ public class OnlineScreen : MonoBehaviour
 
     private void OnBack()
     {
+        if (optionsView != null && optionsView.activeSelf)
+        {
+            optionsView.SetActive(false);
+            return;
+        }
         if (regionMenu.activeSelf)
         {
             regionMenu.SetActive(false);
@@ -1335,6 +1361,362 @@ public class OnlineScreen : MonoBehaviour
         if (client.isHost)
         {
             client.SetLevel(level);
+        }
+    }
+
+    // ------------------------------------------------------------------ opções (idioma, servidores, atualizações)
+
+    private void BuildOptions()
+    {
+        optionsView = new GameObject("Options", typeof(RectTransform), typeof(Image), typeof(Button));
+        optionsView.transform.SetParent(panel.transform, false);
+        Stretch((RectTransform)optionsView.transform);
+        optionsView.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        optionsView.GetComponent<Button>().onClick.AddListener(() => optionsView.SetActive(false));
+
+        var box = MakePanel(optionsView.transform, "Box", new Color(0.09f, 0.08f, 0.13f, 1f)).rectTransform;
+        box.anchorMin = box.anchorMax = new Vector2(0.5f, 0.5f);
+        box.gameObject.AddComponent<Button>().transition = Selectable.Transition.None; // toques na caixa não fecham
+
+        var title = MakeText(box, "Opções", 46, Color.white);
+        Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(40f, -22f), new Vector2(600f, 80f));
+
+        float y = -120f;
+        Label(box, "Idioma", ref y);
+        languageButton = MakeButton(box, "…", 32, CycleLanguage); // o texto vem de RefreshOptionsLabels
+        Row((RectTransform)languageButton.transform, ref y, 76f);
+
+        if (OnlineOptions.CanEditServers)
+        {
+            Label(box, "Servidor principal", ref y);
+            primaryField = MakeInputField(box, "https://…", 30f, 30);
+            Row((RectTransform)primaryField.transform, ref y, 76f);
+            if (OnlineOptions.HasFallbackServer)
+            {
+                Label(box, "Servidor de reserva", ref y);
+                fallbackField = MakeInputField(box, "https://…", 30f, 30);
+                Row((RectTransform)fallbackField.transform, ref y, 76f);
+            }
+            var hint = MakeText(box, "Todos da sala precisam usar o mesmo servidor.", 24, Muted);
+            Row(hint.rectTransform, ref y, 40f);
+            resetServersButton = MakeButton(box, "Restaurar servidores padrão", 28, ResetServersClicked);
+            Row((RectTransform)resetServersButton.transform, ref y, 70f);
+        }
+        if (OnlineOptions.HasUpdateCheck)
+        {
+            updatesButton = MakeButton(box, "…", 28, ToggleUpdates);
+            Row((RectTransform)updatesButton.transform, ref y, 70f);
+        }
+
+        box.sizeDelta = new Vector2(1100f, -y + 140f);
+        var save = MakeButton(box, "Salvar e fechar", 34, SaveOptions, light: true);
+        Place((RectTransform)save.transform, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(420f, 88f), new Vector2(0.5f, 0f));
+        optionsView.SetActive(false);
+    }
+
+    private void ShowOptions()
+    {
+        if (client.state == OnlineClient.State.InRoom || optionsView == null)
+        {
+            return;
+        }
+        if (primaryField != null)
+        {
+            primaryField.text = OnlineOptions.PrimaryServer;
+        }
+        if (fallbackField != null)
+        {
+            fallbackField.text = OnlineOptions.FallbackServer;
+        }
+        RefreshOptionsLabels();
+        optionsView.SetActive(true);
+        optionsView.transform.SetAsLastSibling();
+        ClearFocus();
+    }
+
+    private static string LanguageName(string code)
+    {
+        // cada idioma aparece no próprio nome (não passam pela tradução)
+        return code == "en" ? "English" : code == "pt" ? "Português" : code == "ko" ? "한국어" : "Automático (idioma do jogo)";
+    }
+
+    private void RefreshOptionsLabels()
+    {
+        SetText(languageButton.GetComponentInChildren<Text>(), LanguageName(OnlineOptions.Language));
+        if (updatesButton != null)
+        {
+            SetText(updatesButton.GetComponentInChildren<Text>(),
+                "Verificar atualizações do mod: " + (OnlineOptions.CheckForUpdates ? "Sim" : "Não"));
+        }
+    }
+
+    private void CycleLanguage()
+    {
+        int i = Array.IndexOf(OnlineOptions.Languages, OnlineOptions.Language);
+        OnlineOptions.Language = OnlineOptions.Languages[(i + 1) % OnlineOptions.Languages.Length];
+        RefreshOptionsLabels();
+    }
+
+    private void ToggleUpdates()
+    {
+        OnlineOptions.CheckForUpdates = !OnlineOptions.CheckForUpdates;
+        RefreshOptionsLabels();
+    }
+
+    private void ResetServersClicked()
+    {
+        if (primaryField != null)
+        {
+            primaryField.text = OnlineOptions.DefaultPrimary;
+        }
+        if (fallbackField != null)
+        {
+            fallbackField.text = OnlineOptions.DefaultFallback;
+        }
+    }
+
+    private void SaveOptions()
+    {
+        string p = primaryField != null ? primaryField.text.Trim().TrimEnd('/') : null;
+        string fb = fallbackField != null ? fallbackField.text.Trim().TrimEnd('/') : null;
+        if ((p != null && !OnlineOptions.IsValidServer(p)) || (fb != null && !OnlineOptions.IsValidServer(fb)))
+        {
+            ShowToast("Endereço inválido: use https://…");
+            return;
+        }
+        bool changed = false;
+        if (p != null && p != OnlineOptions.PrimaryServer)
+        {
+            OnlineOptions.PrimaryServer = p;
+            changed = true;
+        }
+        if (fb != null && fb != OnlineOptions.FallbackServer)
+        {
+            OnlineOptions.FallbackServer = fb;
+            changed = true;
+        }
+        optionsView.SetActive(false);
+        if (changed)
+        {
+            OnlineClient.ResetActiveServer();
+            ShowToast("Servidor salvo. Atualizando as salas…");
+            StartCoroutine(Connect());
+        }
+    }
+
+    // ------------------------------------------------------------------ teclado (e botões de controle)
+    // Tab / Shift+Tab percorrem os itens; as setas vão ao item mais próximo na direção; Enter, Espaço ou o botão A
+    // acionam; Esc ou o botão B voltam. O item marcado ganha um contorno.
+
+    private Transform NavRoot()
+    {
+        if (optionsView != null && optionsView.activeSelf)
+        {
+            return optionsView.transform;
+        }
+        if (levelPicker != null && levelPicker.activeSelf)
+        {
+            return levelPicker.transform;
+        }
+        if (resultsPanel != null)
+        {
+            return resultsPanel.transform;
+        }
+        return panel.transform;
+    }
+
+    private List<Selectable> NavTargets()
+    {
+        var list = new List<Selectable>();
+        foreach (var s in NavRoot().GetComponentsInChildren<Selectable>(false))
+        {
+            if (s == null || !s.interactable || !s.gameObject.activeInHierarchy || s is Scrollbar)
+            {
+                continue;
+            }
+            if (s.gameObject == optionsView || s.gameObject == levelPicker)
+            {
+                continue; // o fundo escuro que fecha a janela ao tocar não é um item
+            }
+            if (s.transition == Selectable.Transition.None && !(s is InputField))
+            {
+                continue; // fundos que só fecham a janela ao tocar
+            }
+            list.Add(s);
+        }
+        return list;
+    }
+
+    private static Vector2 CenterOf(Selectable s)
+    {
+        var rt = (RectTransform)s.transform;
+        return (Vector2)rt.TransformPoint(rt.rect.center);
+    }
+
+    private static float ReadingOrder(Selectable s)
+    {
+        Vector2 c = CenterOf(s);
+        return -Mathf.Round(c.y / 60f) * 100000f + c.x; // de cima para baixo, da esquerda para a direita
+    }
+
+    private void ClearFocus()
+    {
+        if (focus != null && focus.targetGraphic != null)
+        {
+            var o = focus.targetGraphic.GetComponent<Outline>();
+            if (o != null)
+            {
+                Destroy(o);
+            }
+        }
+        focus = null;
+    }
+
+    private void SetFocus(Selectable next)
+    {
+        ClearFocus();
+        focus = next;
+        if (next.targetGraphic != null)
+        {
+            var o = next.targetGraphic.GetComponent<Outline>() ?? next.targetGraphic.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(1f, 0.85f, 0.4f, 1f);
+            o.effectDistance = new Vector2(4f, -4f);
+        }
+        // dentro de uma lista com rolagem, traz o item para a vista
+        var sr = next.GetComponentInParent<ScrollRect>();
+        var canvas = next.GetComponentInParent<Canvas>();
+        if (sr != null && sr.content != null && canvas != null && next.transform.IsChildOf(sr.content))
+        {
+            Canvas.ForceUpdateCanvases();
+            var viewport = sr.viewport != null ? sr.viewport : (RectTransform)sr.transform;
+            var item = new Vector3[4];
+            var view = new Vector3[4];
+            ((RectTransform)next.transform).GetWorldCorners(item);
+            viewport.GetWorldCorners(view);
+            float over = 0f;
+            if (item[1].y > view[1].y)
+            {
+                over = item[1].y - view[1].y;
+            }
+            else if (item[0].y < view[0].y)
+            {
+                over = item[0].y - view[0].y;
+            }
+            if (over != 0f)
+            {
+                sr.content.anchoredPosition -= new Vector2(0f, over / canvas.scaleFactor);
+            }
+        }
+    }
+
+    private void Navigate(int tab, Vector2 dir)
+    {
+        var targets = NavTargets();
+        if (targets.Count == 0)
+        {
+            return;
+        }
+        Selectable current = focus != null && targets.Contains(focus) ? focus : null;
+        Selectable next = null;
+        if (current == null)
+        {
+            next = targets.OrderBy(ReadingOrder).First();
+        }
+        else if (tab != 0)
+        {
+            var ordered = targets.OrderBy(ReadingOrder).ToList();
+            int i = ordered.IndexOf(current);
+            next = ordered[(i + tab + ordered.Count) % ordered.Count];
+        }
+        else
+        {
+            Vector2 c = CenterOf(current);
+            float best = float.MaxValue;
+            foreach (var t in targets)
+            {
+                if (t == current)
+                {
+                    continue;
+                }
+                Vector2 d = CenterOf(t) - c;
+                float along = Vector2.Dot(d, dir);
+                if (along <= 1f)
+                {
+                    continue;
+                }
+                float across = Mathf.Abs(Vector2.Dot(d, new Vector2(-dir.y, dir.x)));
+                float score = along + across * 2.5f;
+                if (score < best)
+                {
+                    best = score;
+                    next = t;
+                }
+            }
+            if (next == null)
+            {
+                return;
+            }
+        }
+        SetFocus(next);
+    }
+
+    private void HandleKeyboard()
+    {
+        if (focus != null && (!focus.gameObject.activeInHierarchy || !NavTargets().Contains(focus)))
+        {
+            ClearFocus();
+        }
+        var es = EventSystem.current;
+        bool typing = false;
+        if (es != null && es.currentSelectedGameObject != null)
+        {
+            var field = es.currentSelectedGameObject.GetComponent<InputField>();
+            typing = field != null && field.isFocused;
+        }
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            if (typing)
+            {
+                es.SetSelectedGameObject(null); // sai da digitação
+            }
+            Navigate(shift ? -1 : 1, Vector2.zero);
+            return;
+        }
+        if (typing)
+        {
+            return;
+        }
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            Navigate(0, Vector2.down);
+        }
+        else if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            Navigate(0, Vector2.up);
+        }
+        else if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            Navigate(0, Vector2.right);
+        }
+        else if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            Navigate(0, Vector2.left);
+        }
+        else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.JoystickButton0))
+        {
+            if (focus is InputField input)
+            {
+                input.ActivateInputField();
+            }
+            else if (focus is Button button)
+            {
+                button.onClick.Invoke();
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.JoystickButton1))
+        {
+            OnBack();
         }
     }
 

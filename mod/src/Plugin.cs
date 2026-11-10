@@ -23,28 +23,35 @@ namespace AdofaiOnlineMod
             Log = Logger;
             Log.LogInfo("ADOFAI Online carregado (Unity " + Application.unityVersion + ")");
 
-            // servidores: BepInEx/config/adofai.port.online.cfg (nada fixo no código)
-            // por padrão usa os servidores públicos do projeto (Oracle Cloud em São Paulo; Cloudflare de reserva)
-            ServerConfig.Primary = (Config.Bind("Server", "Primary", "https://150-230-231-11.sslip.io",
-                "Address of the room server to try first. All players in a room must use the same server. Empty = none.").Value ?? "").Trim();
-            ServerConfig.Fallback = (Config.Bind("Server", "Fallback", "https://adofai-port-online.adolfheim.workers.dev",
-                "Optional second server, used when the first does not answer.").Value ?? "").Trim();
-            if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
-            {
-                Log.LogWarning("No server configured: edit BepInEx/config/adofai.port.online.cfg");
-            }
-
-            // idioma das telas do mod: auto = o idioma do jogo (português, coreano ou, nos demais, inglês)
-            string language = (Config.Bind("General", "Language", "auto",
+            // opções: BepInEx/config/adofai.port.online.cfg (nada fixo no código), editáveis também na tela Opções
+            // do Online. Por padrão usa os servidores públicos do projeto (Oracle Cloud em São Paulo; Cloudflare de reserva)
+            const string defaultPrimary = "https://150-230-231-11.sslip.io";
+            const string defaultFallback = "https://adofai-port-online.adolfheim.workers.dev";
+            var primary = Config.Bind("Server", "Primary", defaultPrimary,
+                "Address of the room server to try first. All players in a room must use the same server. Empty = none.");
+            var fallback = Config.Bind("Server", "Fallback", defaultFallback,
+                "Optional second server, used when the first does not answer.");
+            var language = Config.Bind("General", "Language", "auto",
                 new BepInEx.Configuration.ConfigDescription("Language of the mod's screens: auto (follows the game language), en, pt or ko.",
-                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt", "ko"))).Value ?? "auto").Trim().ToLowerInvariant();
-            Loc.Preferred = language == "en" ? Loc.Mode.English
-                : language == "pt" ? Loc.Mode.Portuguese
-                : language == "ko" ? Loc.Mode.Korean
-                : Loc.Mode.Auto;
-            Log.LogInfo("Language setting: " + language);
+                    new BepInEx.Configuration.AcceptableValueList<string>("auto", "en", "pt", "ko")));
             CheckForUpdates = Config.Bind("General", "CheckForUpdates", true,
                 "Ask GitHub (api.github.com) once at startup whether a newer version of the mod exists, and show a notice in the level selector. No personal data is sent.");
+
+            ServerConfig.Primary = (primary.Value ?? "").Trim();
+            ServerConfig.Fallback = (fallback.Value ?? "").Trim();
+            if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
+            {
+                Log.LogWarning("No server configured: set one in the Online > Options screen or in BepInEx/config/adofai.port.online.cfg");
+            }
+
+            OnlineOptions.Store = new ConfigStore(language, primary, fallback, CheckForUpdates);
+            OnlineOptions.HasFallbackServer = true;
+            OnlineOptions.HasUpdateCheck = true;
+            OnlineOptions.DefaultLanguage = "auto";
+            OnlineOptions.DefaultPrimary = defaultPrimary;
+            OnlineOptions.DefaultFallback = defaultFallback;
+            OnlineOptions.ApplyLanguage(); // auto = o idioma do jogo (português, coreano ou, nos demais, inglês)
+            Log.LogInfo("Language setting: " + language.Value);
 
             var harmony = new Harmony("adofai.port.online");
             // um patch por vez: se o jogo mudar e um deles falhar, o resto continua e o jogador é avisado na tela
@@ -96,6 +103,60 @@ namespace AdofaiOnlineMod
             {
                 PatchProblems.Add(name);
                 Log.LogError("patch " + name + " falhou: " + e.Message);
+            }
+        }
+    }
+
+    /// <summary>Guarda as opções da tela Opções nas entradas do arquivo de configuração do BepInEx.</summary>
+    internal sealed class ConfigStore : OnlineOptions.IStore
+    {
+        private readonly BepInEx.Configuration.ConfigEntry<string> language, primary, fallback;
+        private readonly BepInEx.Configuration.ConfigEntry<bool> updates;
+
+        public ConfigStore(BepInEx.Configuration.ConfigEntry<string> language, BepInEx.Configuration.ConfigEntry<string> primary,
+            BepInEx.Configuration.ConfigEntry<string> fallback, BepInEx.Configuration.ConfigEntry<bool> updates)
+        {
+            this.language = language;
+            this.primary = primary;
+            this.fallback = fallback;
+            this.updates = updates;
+        }
+
+        public string Get(string key, string defaultValue)
+        {
+            switch (key)
+            {
+                case "language":
+                    return language.Value;
+                case "primary":
+                    return primary.Value;
+                case "fallback":
+                    return fallback.Value;
+                case "updates":
+                    return updates.Value ? "true" : "false";
+                default:
+                    return defaultValue;
+            }
+        }
+
+        public void Set(string key, string value)
+        {
+            switch (key)
+            {
+                case "language":
+                    language.Value = value;
+                    break;
+                case "primary":
+                    primary.Value = value;
+                    ServerConfig.Primary = (value ?? "").Trim();
+                    break;
+                case "fallback":
+                    fallback.Value = value;
+                    ServerConfig.Fallback = (value ?? "").Trim();
+                    break;
+                case "updates":
+                    updates.Value = value == "true";
+                    break;
             }
         }
     }

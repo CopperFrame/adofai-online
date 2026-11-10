@@ -116,6 +116,12 @@ public class OnlineClient : MonoBehaviour
         set => ServerOverride = value;
     }
 
+    /// <summary>Esquece o servidor que respondeu antes (depois de mudar os endereços nas opções).</summary>
+    public static void ResetActiveServer()
+    {
+        activeServer = null;
+    }
+
     private static List<string> CandidateServers()
     {
         var list = new List<string>();
