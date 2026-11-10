@@ -129,6 +129,7 @@ class Room {
     this.hostId = 0;
     this.level = null;
     this.mods = {};
+    this.queue = [];
     this.inGame = false;
     this.order = [];
     this.updated = Date.now();
@@ -161,6 +162,7 @@ class Room {
       host: this.hostId,
       level: this.level,
       mods: this.mods,
+      queue: this.queue,
       inGame: this.inGame,
       order: this.inGame ? this.order : [],
       players: this.players()
@@ -254,6 +256,13 @@ class Room {
         if (!isHost || this.inGame) return;
         this.mods = cleanMods(msg.mods);
         this.broadcast({ t: "mods", mods: this.mods });
+        break;
+
+      case "queue":
+        // fila de fases (só o anfitrião, a qualquer momento): o anfitrião avança a fila quando a partida acaba
+        if (!isHost) return;
+        this.queue = cleanQueue(msg.queue);
+        this.broadcast({ t: "queue", queue: this.queue });
         break;
 
       case "level":
@@ -477,6 +486,21 @@ setInterval(() => {
     ws.ping();
   }
 }, 30_000);
+const QUEUE_MAX = 8;
+const QUEUE_FIELDS = ["source", "hash", "title", "artist", "author", "url", "key"];
+
+function cleanQueue(q) {
+  const out = [];
+  if (!Array.isArray(q)) return out;
+  for (const item of q.slice(0, QUEUE_MAX)) {
+    if (!item || typeof item !== "object") continue;
+    const lv = {};
+    for (const f of QUEUE_FIELDS) if (item[f] != null) lv[f] = cleanText(item[f], f === "url" ? 400 : 120);
+    if (lv.title) out.push(lv);
+  }
+  return out;
+}
+
 function cleanMods(m) {
   const out = {};
   if (m && m.immortal === true) out.immortal = true;

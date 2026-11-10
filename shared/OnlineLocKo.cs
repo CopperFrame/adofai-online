@@ -109,6 +109,13 @@ public static partial class Loc
         // tela online: sala
         ["Código da sala"] = "방 코드",
         ["Escolher fase"] = "레벨 선택",
+        ["Adicionar à fila"] = "대기열에 추가",
+        ["Modificadores"] = "모디파이어",
+        ["Limpar fila"] = "대기열 비우기",
+        ["Fila vazia"] = "대기열 비어 있음",
+        ["Fila: "] = "대기열: ",
+        ["Fase adicionada à fila."] = "레벨이 대기열에 추가되었습니다.",
+        ["Fila cheia (máx. 8)."] = "대기열이 가득 찼습니다 (최대 8개).",
         ["Sair da sala"] = "방 나가기",
         ["Jogadores (até "] = "플레이어 (최대 ",
         [" · servidor "] = " · 서버 ",

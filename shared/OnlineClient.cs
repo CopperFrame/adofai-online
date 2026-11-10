@@ -198,6 +198,9 @@ public class OnlineClient : MonoBehaviour
     public bool modImmortal => mods.Value<bool?>("immortal") ?? false;
     public float modSpeed => Mathf.Clamp(mods.Value<float?>("speed") ?? 1f, 0.5f, 2f);
     public bool HasMods => modImmortal || Mathf.Abs(modSpeed - 1f) > 0.001f;
+    /// <summary>Fila de fases (o anfitrião passa para a próxima quando a partida acaba).</summary>
+    public JArray queue { get; private set; } = new JArray();
+    public const int MaxQueue = 8;
     public bool inGame { get; private set; }
     /// <summary>Jogadores da partida em andamento (para quem entrou assistindo).</summary>
     public int[] roomOrder { get; private set; } = new int[0];
@@ -532,6 +535,33 @@ public class OnlineClient : MonoBehaviour
         OnRoomChanged?.Invoke();
     }
 
+    public void SetQueue(JArray items)
+    {
+        var q = new JArray();
+        foreach (var it in items)
+        {
+            if (q.Count < MaxQueue)
+            {
+                q.Add(it);
+            }
+        }
+        queue = q; // vale já para o anfitrião; o servidor repassa aos outros
+        Send(new JObject { ["t"] = "queue", ["queue"] = q });
+        OnRoomChanged?.Invoke();
+    }
+
+    /// <summary>Acrescenta no fim da fila; false se ela já estiver cheia.</summary>
+    public bool AddToQueue(JObject levelInfo)
+    {
+        if (queue.Count >= MaxQueue)
+        {
+            return false;
+        }
+        var q = new JArray(queue) { levelInfo };
+        SetQueue(q);
+        return true;
+    }
+
     public void SetLevel(JObject levelInfo) => Send(new JObject { ["t"] = "level", ["level"] = levelInfo });
 
     public void StartGame() => Send(new JObject { ["t"] = "start" });
@@ -642,6 +672,10 @@ public class OnlineClient : MonoBehaviour
                 mods = msg["mods"] as JObject ?? new JObject();
                 OnRoomChanged?.Invoke();
                 break;
+            case "queue":
+                queue = msg["queue"] as JArray ?? new JArray();
+                OnRoomChanged?.Invoke();
+                break;
             case "level":
                 level = msg["level"];
                 foreach (var p in players)
@@ -687,6 +721,7 @@ public class OnlineClient : MonoBehaviour
                     p.spectator = false; // espectadores viram jogadores para a próxima partida
                 }
                 OnEnd?.Invoke(msg["results"]);
+                AdvanceQueue();
                 OnRoomChanged?.Invoke();
                 break;
             case "ev":
@@ -716,6 +751,22 @@ public class OnlineClient : MonoBehaviour
         }
     }
 
+    // fim da partida: o anfitrião coloca a próxima fase da fila como fase da sala
+    private void AdvanceQueue()
+    {
+        if (!isHost || queue.Count == 0 || !(queue[0] is JObject next))
+        {
+            return;
+        }
+        var rest = new JArray();
+        for (int i = 1; i < queue.Count; i++)
+        {
+            rest.Add(queue[i]);
+        }
+        SetLevel(next);
+        SetQueue(rest);
+    }
+
     private void ReadRoom(JObject room)
     {
         players.Clear();
@@ -730,6 +781,7 @@ public class OnlineClient : MonoBehaviour
         hostId = room.Value<int>("host");
         level = room["level"];
         mods = room["mods"] as JObject ?? new JObject();
+        queue = room["queue"] as JArray ?? new JArray();
         if (level != null && level.Type == JTokenType.Null)
         {
             level = null;

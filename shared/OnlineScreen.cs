@@ -75,6 +75,11 @@ public class OnlineScreen : MonoBehaviour
     private Button immortalButton;
     private Button speedButton;
     private Text modsText;
+    private Button queueAddButton;
+    private Button queueClearButton;
+    private Text queueText;
+    private Text levelPickerTitle;
+    private bool pickingForQueue;
     private static readonly float[] SpeedSteps = { 1f, 1.25f, 1.5f, 1.75f, 2f, 0.5f, 0.75f };
     private Button readyButton;
     private Button startButton;
@@ -593,33 +598,43 @@ public class OnlineScreen : MonoBehaviour
         left.offsetMin = new Vector2(30f, 30f);
         left.offsetMax = new Vector2(30f + 640f, 0f);
 
-        float y = -46f;
-        Label(left, "Código da sala", ref y);
-        roomCodeText = MakeText(left, "", 84, Color.white);
+        // topo: código da sala (para passar aos amigos) e onde o servidor está
+        var codeLabel = MakeText(left, "Código da sala", 26, Muted);
+        codeLabel.alignment = TextAnchor.MiddleCenter;
+        Place(codeLabel.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -26f), new Vector2(580f, 36f), new Vector2(0f, 1f));
+        roomCodeText = MakeText(left, "", 76, Color.white);
         roomCodeText.alignment = TextAnchor.MiddleCenter;
-        Row(roomCodeText.rectTransform, ref y, 110f);
-        roomInfoText = MakeText(left, "", 28, Muted);
+        Place(roomCodeText.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -60f), new Vector2(580f, 80f), new Vector2(0f, 1f));
+        roomInfoText = MakeText(left, "", 26, Muted);
         roomInfoText.alignment = TextAnchor.MiddleCenter;
-        Row(roomInfoText.rectTransform, ref y, 50f);
+        Place(roomInfoText.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -142f), new Vector2(580f, 36f), new Vector2(0f, 1f));
 
-        y -= 10f;
-        Label(left, "Fase", ref y);
-        levelText = MakeText(left, "", 34, Color.white);
+        // grupo "Fase": a fase da sala, quem escolhe e a fila
+        var levelCard = NewGroup(left, "Fase", -190f, 292f);
+        levelText = MakeText(levelCard, "", 34, Color.white);
         levelText.horizontalOverflow = HorizontalWrapMode.Wrap;
         levelText.verticalOverflow = VerticalWrapMode.Truncate;
-        Row(levelText.rectTransform, ref y, 112f);
-        chooseLevelButton = MakeButton(left, "Escolher fase", 32, ShowLevelPicker);
-        Row((RectTransform)chooseLevelButton.transform, ref y, 70f);
+        Place(levelText.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -44f), new Vector2(548f, 116f), new Vector2(0f, 1f));
+        chooseLevelButton = MakeButton(levelCard, "Escolher fase", 26, () => ShowLevelPicker(false));
+        Place((RectTransform)chooseLevelButton.transform, new Vector2(0f, 1f), new Vector2(16f, -166f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        queueAddButton = MakeButton(levelCard, "Adicionar à fila", 26, () => ShowLevelPicker(true));
+        Place((RectTransform)queueAddButton.transform, new Vector2(0f, 1f), new Vector2(296f, -166f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        queueText = MakeText(levelCard, "", 24, Muted);
+        queueText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        queueText.verticalOverflow = VerticalWrapMode.Truncate;
+        Place(queueText.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -232f), new Vector2(392f, 52f), new Vector2(0f, 1f));
+        queueClearButton = MakeButton(levelCard, "Limpar fila", 22, () => client.SetQueue(new Newtonsoft.Json.Linq.JArray()));
+        Place((RectTransform)queueClearButton.transform, new Vector2(0f, 1f), new Vector2(420f, -234f), new Vector2(144f, 48f), new Vector2(0f, 1f));
 
-        // modificadores da partida: o anfitrião escolhe, os outros só veem
-        immortalButton = MakeButton(left, "Imortal", 26, ToggleImmortal);
-        Place((RectTransform)immortalButton.transform, new Vector2(0f, 1f), new Vector2(44f, y), new Vector2(270f, 64f), new Vector2(0f, 1f));
-        speedButton = MakeButton(left, "Velocidade", 26, CycleSpeed);
-        Place((RectTransform)speedButton.transform, new Vector2(0f, 1f), new Vector2(44f + 282f, y), new Vector2(270f, 64f), new Vector2(0f, 1f));
-        modsText = MakeText(left, "", 26, Muted);
+        // grupo "Modificadores": o anfitrião escolhe, os outros só veem
+        var modsCard = NewGroup(left, "Modificadores", -494f, 118f);
+        immortalButton = MakeButton(modsCard, "Imortal", 26, ToggleImmortal);
+        Place((RectTransform)immortalButton.transform, new Vector2(0f, 1f), new Vector2(16f, -48f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        speedButton = MakeButton(modsCard, "Velocidade", 26, CycleSpeed);
+        Place((RectTransform)speedButton.transform, new Vector2(0f, 1f), new Vector2(296f, -48f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        modsText = MakeText(modsCard, "", 26, Muted);
         modsText.alignment = TextAnchor.MiddleCenter;
-        Place(modsText.rectTransform, new Vector2(0f, 1f), new Vector2(44f, y), new Vector2(552f, 64f), new Vector2(0f, 1f));
-        y -= 76f;
+        Place(modsText.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -48f), new Vector2(548f, 58f), new Vector2(0f, 1f));
 
         // botões de baixo
         var leave = MakeButton(left, "Sair da sala", 32, () => client.Leave());
@@ -669,6 +684,16 @@ public class OnlineScreen : MonoBehaviour
             }
         }, light: true);
         Place((RectTransform)startButton.transform, new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(400f, 80f));
+    }
+
+    // caixa clara com título, para agrupar itens da sala; devolve o corpo onde ficam os controles
+    private RectTransform NewGroup(RectTransform parent, string title, float top, float height)
+    {
+        var card = PortUi.MakePanel(parent, "Group", new Color(1f, 1f, 1f, 0.06f)).rectTransform;
+        Place(card, new Vector2(0f, 1f), new Vector2(30f, top), new Vector2(580f, height), new Vector2(0f, 1f));
+        var head = MakeText(card, title, 26, Muted);
+        Place(head.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -8f), new Vector2(548f, 36f), new Vector2(0f, 1f));
+        return card;
     }
 
     private void BuildRegionMenu()
@@ -806,6 +831,7 @@ public class OnlineScreen : MonoBehaviour
             : title + (string.IsNullOrEmpty(artist) ? "" : $"  <color=#ffffff88>{artist}</color>") + "\n<size=38>" + status + "</size>");
         chooseLevelButton.gameObject.SetActive(client.isHost);
         RefreshMods();
+        RefreshQueue();
 
         ClearChildren(playerList);
         foreach (var p in client.players)
@@ -1199,7 +1225,7 @@ public class OnlineScreen : MonoBehaviour
     private RectTransform levelPickerList;
     private InputField levelPickerSearch;
 
-    private void ShowLevelPicker()
+    private void ShowLevelPicker(bool forQueue)
     {
         if (!client.isHost)
         {
@@ -1209,6 +1235,8 @@ public class OnlineScreen : MonoBehaviour
         {
             BuildLevelPicker();
         }
+        pickingForQueue = forQueue;
+        SetText(levelPickerTitle, forQueue ? "Adicionar à fila" : "Escolher fase");
         levelPicker.SetActive(true);
         levelPicker.transform.SetAsLastSibling();
         levelPickerSearch.text = "";
@@ -1229,7 +1257,7 @@ public class OnlineScreen : MonoBehaviour
         box.sizeDelta = new Vector2(1300f, 800f);
         box.gameObject.AddComponent<Button>().transition = Selectable.Transition.None; // toques na caixa não fecham
 
-        var title = MakeText(box, "Escolher fase", 44, Color.white);
+        var title = levelPickerTitle = MakeText(box, "Escolher fase", 44, Color.white);
         Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -20f), new Vector2(600f, 80f));
         var community = MakeButton(box, "Da comunidade (ADOFAI.gg / TUF)", 32, PickCommunityLevel, light: true);
         Place((RectTransform)community.transform, new Vector2(1f, 1f), new Vector2(-30f, -20f), new Vector2(560f, 80f));
@@ -1298,7 +1326,7 @@ public class OnlineScreen : MonoBehaviour
             var row = MakeButton(levelPickerList, "", 0, () =>
             {
                 levelPicker.SetActive(false);
-                StartCoroutine(PickLocalLevel(hash, title, artist, author));
+                StartCoroutine(PickLocalLevel(hash, title, artist, author, pickingForQueue));
             });
             row.GetComponent<Image>().color = Card;
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 96f;
@@ -1319,7 +1347,7 @@ public class OnlineScreen : MonoBehaviour
     }
 
     // fase que o anfitrião já tem: procura o link no ADOFAI.gg/TUF para quem não tiver poder baixar
-    private IEnumerator PickLocalLevel(string hash, string title, string artist, string author)
+    private IEnumerator PickLocalLevel(string hash, string title, string artist, string author, bool forQueue)
     {
         ShowToast("Procurando a fase no ADOFAI.gg e no TUF…");
         string url = null, key = null;
@@ -1360,8 +1388,40 @@ public class OnlineScreen : MonoBehaviour
         }
         if (client.isHost)
         {
+            ApplyPickedLevel(level, forQueue);
+        }
+    }
+
+    // fase escolhida pelo anfitrião: vira a fase da sala ou entra no fim da fila
+    private void ApplyPickedLevel(Newtonsoft.Json.Linq.JObject level, bool forQueue)
+    {
+        if (!forQueue)
+        {
             client.SetLevel(level);
         }
+        else if (client.AddToQueue(level))
+        {
+            ShowToast("Fase adicionada à fila.");
+        }
+        else
+        {
+            ShowToast("Fila cheia (máx. 8).");
+        }
+    }
+
+    private void RefreshQueue()
+    {
+        bool host = client.isHost;
+        queueAddButton.gameObject.SetActive(host);
+        queueClearButton.gameObject.SetActive(host && client.queue.Count > 0);
+        var names = new List<string>();
+        foreach (var item in client.queue)
+        {
+            names.Add(StripTags(item.Value<string>("title") ?? "?"));
+        }
+        SetText(queueText, names.Count == 0
+            ? (host ? "Fila vazia" : "")
+            : "Fila: " + string.Join(" · ", names.Select((n, i) => (i + 1) + ". " + n)));
     }
 
     // ------------------------------------------------------------------ opções (idioma, servidores, atualizações)
@@ -1770,13 +1830,14 @@ public class OnlineScreen : MonoBehaviour
 
     private void PickCommunityLevel()
     {
+        bool forQueue = pickingForQueue;
         levelPicker.SetActive(false);
         SetOpen(false);
         LevelBrowser.PickForOnline((url, key, title, artist, author) =>
         {
             if (url != null && client.isHost)
             {
-                client.SetLevel(new Newtonsoft.Json.Linq.JObject
+                ApplyPickedLevel(new Newtonsoft.Json.Linq.JObject
                 {
                     ["source"] = "url",
                     ["url"] = url,
@@ -1784,7 +1845,7 @@ public class OnlineScreen : MonoBehaviour
                     ["title"] = title,
                     ["artist"] = artist ?? "",
                     ["author"] = author ?? "", // para quem já tem a fase achar a própria cópia e não baixar de novo
-                });
+                }, forQueue);
             }
             Open();
         });

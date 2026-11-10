@@ -158,6 +158,7 @@ interface RoomState {
   nextId: number;
   hostId: number;
   mods?: Record<string, unknown>; // modificadores da partida (imortal, velocidade), definidos pelo anfitrião
+  queue?: unknown[]; // fila de fases (o anfitrião avança quando a partida acaba)
   level: unknown; // definido pelo anfitrião (fase oficial ou da comunidade); o servidor não interpreta
   inGame: boolean;
   order?: number[]; // jogadores da partida em andamento (para quem entra assistindo)
@@ -234,6 +235,7 @@ export class Room extends DurableObject<Env> {
       host: s.hostId,
       level: s.level,
       mods: s.mods ?? {},
+      queue: s.queue ?? [],
       inGame: s.inGame,
       order: s.inGame ? s.order ?? [] : [],
       players: this.players()
@@ -347,6 +349,25 @@ export class Room extends DurableObject<Env> {
         s.mods = out;
         await this.save();
         this.broadcast({ t: "mods", mods: out });
+        break;
+      }
+
+      case "queue": {
+        if (!isHost) return;
+        const out: Record<string, string>[] = [];
+        const fields = ["source", "hash", "title", "artist", "author", "url", "key"];
+        const q = Array.isArray(msg.queue) ? (msg.queue as Record<string, unknown>[]).slice(0, 8) : [];
+        for (const item of q) {
+          if (!item || typeof item !== "object") continue;
+          const lv: Record<string, string> = {};
+          for (const f of fields) {
+            if (item[f] != null) lv[f] = String(item[f]).replace(/[ -]/g, "").trim().slice(0, f === "url" ? 400 : 120);
+          }
+          if (lv.title) out.push(lv);
+        }
+        s.queue = out;
+        await this.save();
+        this.broadcast({ t: "queue", queue: out });
         break;
       }
 

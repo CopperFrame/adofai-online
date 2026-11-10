@@ -206,6 +206,13 @@ public static partial class Loc
         // tela online: sala
         ("Código da sala", "Room code"),
         ("Escolher fase", "Pick level"),
+        ("Adicionar à fila", "Add to queue"),
+        ("Modificadores", "Modifiers"),
+        ("Limpar fila", "Clear queue"),
+        ("Fila vazia", "Queue empty"),
+        ("Fila: ", "Queue: "),
+        ("Fase adicionada à fila.", "Level added to the queue."),
+        ("Fila cheia (máx. 8).", "Queue is full (max 8)."),
         ("Sair da sala", "Leave room"),
         ("Jogadores (até ", "Players (up to "),
         (" · servidor ", " · server "),
