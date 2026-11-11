@@ -450,6 +450,8 @@ public class OnlineMatch : MonoBehaviour
         return found.Value;
     }
 
+    private const float DownloadStallSeconds = 30f;
+
     private IEnumerator Download(string url, string key, string title, Action<string> done)
     {
         string tempDir = Path.Combine(scnCLS.tempLevelsFolder, "online");
@@ -463,9 +465,24 @@ public class OnlineMatch : MonoBehaviour
         {
             req.downloadHandler = new DownloadHandlerFile(zip) { removeFileOnAbort = true };
             var op = req.SendWebRequest();
+            ulong lastBytes = 0;
+            float lastDataAt = Time.unscaledTime;
             while (!op.isDone)
             {
                 downloadProgress = Mathf.Clamp01(req.downloadProgress);
+                // link que não responde não pode deixar a fase em "Baixando 0%" para sempre
+                if (req.downloadedBytes != lastBytes)
+                {
+                    lastBytes = req.downloadedBytes;
+                    lastDataAt = Time.unscaledTime;
+                }
+                else if (Time.unscaledTime - lastDataAt > DownloadStallSeconds)
+                {
+                    req.Abort();
+                    levelError = "O download não respondeu (30 s sem dados). Tente de novo ou escolha outra fase.";
+                    done(null);
+                    yield break;
+                }
                 OnLevelStateChanged?.Invoke();
                 yield return null;
             }

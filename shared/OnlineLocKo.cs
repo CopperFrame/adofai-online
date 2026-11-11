@@ -119,6 +119,7 @@ public static partial class Loc
         ["Você foi banido desta sala."] = "이 방에서 차단되었습니다.",
         ["(senha)"] = "(비밀번호)",
         ["Banir"] = "차단",
+        ["O download não respondeu (30 s sem dados). Tente de novo ou escolha outra fase."] = "다운로드가 응답하지 않습니다(30초 동안 데이터 없음). 다시 시도하거나 다른 레벨을 고르세요.",
         ["Filtro de palavrões no chat: Sim"] = "채팅 욕설 필터: 예",
         ["Filtro de palavrões no chat: Não"] = "채팅 욕설 필터: 아니요",
         ["Denunciar"] = "신고",

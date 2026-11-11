@@ -11,7 +11,7 @@ namespace AdofaiOnlineMod
     [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Version = "0.2.7";
+        public const string Version = "0.2.8";
         internal static BepInEx.Logging.ManualLogSource Log;
 
         /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>
@@ -323,6 +323,35 @@ namespace AdofaiOnlineMod
             {
                 OnlineScreen.Back();
             }
+        }
+    }
+
+    // com uma tela do mod aberta por cima do seletor de fases, as teclas são dela: o jogo não conta como "apertar" (não entra em fase por trás)
+    [HarmonyPatch(typeof(scrPlayer), nameof(scrPlayer.ValidInputWasTriggered))]
+    internal static class NoInputBehindScreens
+    {
+        private static bool Prefix(ref bool __result)
+        {
+            if (OnlineScreen.IsOpen || LevelBrowser.IsOpen)
+            {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(scrPlayer), nameof(scrPlayer.CountValidKeysPressed))]
+    internal static class NoKeysBehindScreens
+    {
+        private static bool Prefix(ref int __result)
+        {
+            if (OnlineScreen.IsOpen || LevelBrowser.IsOpen)
+            {
+                __result = 0;
+                return false;
+            }
+            return true;
         }
     }
 

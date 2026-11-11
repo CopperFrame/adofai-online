@@ -91,7 +91,11 @@ namespace AdofaiOnlineMod
         }
 
         private static readonly MethodInfo ScanLevelsMethod = AccessTools.Method(typeof(scnCLS), "ScanLevels");
-        private static bool indexingLevels;
+        private static readonly MethodInfo EnterCategoryMethod = AccessTools.Method(typeof(scnCLS), "EnterCategory");
+        // por tela do seletor (instância do scnCLS): uma leitura que ficou pela metade (a tela foi trocada) não bloqueia a próxima
+        private static scnCLS indexingFor;
+        private static scnCLS indexedFor;
+        private static int indexedCount;
 
         /// <summary>
         /// O jogo só lê as pastas de fases (locais e da oficina do Steam) ao entrar numa categoria; com a tela inicial do
@@ -99,11 +103,44 @@ namespace AdofaiOnlineMod
         /// </summary>
         public static IEnumerator EnsureLevelsIndexed(this scnCLS cls)
         {
-            if (ScanLevelsMethod == null || cls.featuredLevelsMode || indexingLevels || cls.GetLocalLevels().Count > 0)
+            if (ScanLevelsMethod == null || indexingFor == cls)
             {
                 yield break;
             }
-            indexingLevels = true;
+            if (cls.featuredLevelsMode)
+            {
+                // o jogo volta de uma partida para a categoria da fase jogada: se ela for uma fase em destaque (Classic/Tech), o
+                // seletor só tem as fases oficiais (sem pasta no PC). Vai para a categoria Oficina, que lê as fases locais e da oficina.
+                if (EnterCategoryMethod != null)
+                {
+                    indexingFor = cls;
+                    try
+                    {
+                        EnterCategoryMethod.Invoke(cls, new object[] { System.Enum.Parse(AccessTools.Inner(typeof(scnCLS), "Category"), "Workshop") });
+                    }
+                    catch (System.Exception e)
+                    {
+                        Plugin.Log.LogWarning("Não deu para ir à categoria Oficina: " + e.Message);
+                    }
+                    float waited = UnityEngine.Time.realtimeSinceStartup;
+                    while (UnityEngine.Time.realtimeSinceStartup - waited < 20f && cls != null && (cls.featuredLevelsMode || cls.GetLocalLevels().Count == 0))
+                    {
+                        yield return null;
+                    }
+                    indexingFor = null;
+                    indexedFor = cls;
+                    indexedCount = cls != null ? cls.GetLocalLevels().Count : 0;
+                }
+                yield break;
+            }
+            // ao voltar de uma partida o jogo lista só a fase que acabou de ser jogada: lista não vazia não quer dizer lista completa.
+            // Lê as pastas uma vez por tela do seletor (e de novo se o jogo esvaziar a lista depois).
+            int have = cls.GetLocalLevels().Count;
+            if (indexedFor == cls && have > 0 && have >= indexedCount)
+            {
+                yield break;
+            }
+            indexingFor = cls;
             System.Threading.Tasks.Task scan = null;
             try
             {
@@ -117,7 +154,9 @@ namespace AdofaiOnlineMod
             {
                 yield return null;
             }
-            indexingLevels = false;
+            indexingFor = null;
+            indexedFor = cls;
+            indexedCount = cls.GetLocalLevels().Count;
         }
 
         public static List<KeyValuePair<string, LevelDataCLS>> GetLocalLevels(this scnCLS cls)

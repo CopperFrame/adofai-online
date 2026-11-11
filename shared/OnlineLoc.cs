@@ -211,6 +211,7 @@ public static partial class Loc
         ("Você foi banido desta sala.", "You were banned from this room."),
         ("(senha)", "(password)"),
         ("Banir", "Ban"),
+        ("O download não respondeu (30 s sem dados). Tente de novo ou escolha outra fase.", "The download did not respond (30 s without data). Try again or pick another level."),
         ("Filtro de palavrões no chat: Sim", "Swear-word filter in chat: Yes"),
         ("Filtro de palavrões no chat: Não", "Swear-word filter in chat: No"),
         ("Denunciar", "Report"),
