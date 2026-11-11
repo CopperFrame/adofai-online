@@ -14,7 +14,7 @@ public static class OnlineOptions
         void Set(string key, string value);
     }
 
-    // Chaves: "language" (auto/en/pt/ko), "primary", "fallback", "updates" (true/false)
+    // Chaves: "language" (auto/en/pt/ko), "primary", "fallback", "updates" (true/false), "filter" (true/false)
     private sealed class PrefsStore : IStore
     {
         public string Get(string key, string fallback)
@@ -132,6 +132,17 @@ public static class OnlineOptions
         set
         {
             Store.Set("updates", value ? "true" : "false");
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Filtro de palavrões no chat e nos nomes (cada jogador escolhe; ligado por padrão).</summary>
+    public static bool ChatFilter
+    {
+        get => (Store.Get("filter", "true") ?? "true") != "false";
+        set
+        {
+            Store.Set("filter", value ? "true" : "false");
             Changed?.Invoke();
         }
     }

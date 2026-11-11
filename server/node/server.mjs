@@ -110,6 +110,10 @@ function cleanText(value, max) {
     .slice(0, max);
 }
 
+function sha256hex(text) {
+  return crypto.createHash("sha256").update(text).digest("hex");
+}
+
 function newCode() {
   for (;;) {
     const bytes = crypto.randomBytes(5);
@@ -119,8 +123,16 @@ function newCode() {
 }
 
 class Room {
-  constructor(code, name, isPublic) {
+  constructor(code, name, isPublic, password = "") {
     this.code = code;
+    // senha da sala (opcional): o servidor guarda só o hash; o cliente manda sha256(CODIGO:senha) ao entrar
+    this.pwh = password ? sha256hex(code + ":" + password) : null;
+    this.banned = new Set(); // IPs banidos pelo anfitrião (só em memória, enquanto a sala existe)
+    this.ipOf = new Map(); // conexão -> IP, para banir
+    this.chatState = new Map(); // conexão -> { stamps: [ms], last, lastAt } (anti-spam do chat)
+    this.reportAt = new Map(); // conexão -> hora da última denúncia
+    this.recentChat = []; // últimas mensagens da sala (só em memória), para anexar às denúncias
+
     this.name = name;
     this.isPublic = isPublic;
     this.colo = SERVER_NAME;
@@ -180,6 +192,7 @@ class Room {
       region: this.region,
       players: this.sockets.size,
       maxPlayers: MAX_PLAYERS,
+      locked: !!this.pwh,
       inGame: this.inGame,
       level: level && level.title ? String(level.title).slice(0, 64) : "",
       updated: this.updated,
@@ -195,12 +208,23 @@ class Room {
     if (this.sockets.size === 0) rooms.delete(this.code);
   }
 
-  join(ws, name, version) {
+  join(ws, name, version, pwh = "", ip = "") {
     if (version !== PROTOCOL_VERSION) {
       this.send(ws, { t: "error", code: "version", message: "Versão do jogo diferente da sala." });
       ws.close(4001, "version");
       return;
     }
+    if (ip && this.banned.has(ip)) {
+      this.send(ws, { t: "error", code: "banned", message: "Você foi banido desta sala." });
+      ws.close(4006, "banned");
+      return;
+    }
+    if (this.pwh && pwh !== this.pwh) {
+      this.send(ws, { t: "error", code: "password", message: "Senha da sala incorreta." });
+      ws.close(4005, "password");
+      return;
+    }
+    if (ip) this.ipOf.set(ws, ip);
     const all = this.players();
     const racers = all.filter((p) => !p.info.spectator).length;
     const spectators = all.length - racers;
@@ -305,9 +329,47 @@ class Room {
         this.broadcast({ t: "ev", from: me.id, d: msg.d }, me.id);
         break;
 
-      case "chat":
-        this.broadcast({ t: "chat", from: me.id, text: cleanText(msg.text, 140) });
+      case "chat": {
+        const text = cleanText(msg.text, 140);
+        if (!text) break;
+        // anti-spam: no máximo 5 mensagens em 8 s, intervalo mínimo de 0,6 s e sem repetir a mesma em 6 s
+        const now = Date.now();
+        const st = this.chatState.get(ws) ?? { stamps: [], last: "", lastAt: 0 };
+        st.stamps = st.stamps.filter((t) => now - t < 8000);
+        if (st.stamps.length >= 5 || (st.stamps.length > 0 && now - st.stamps[st.stamps.length - 1] < 600) || (text === st.last && now - st.lastAt < 6000)) {
+          this.chatState.set(ws, st);
+          this.send(ws, { t: "error", code: "slow", message: "Calma! Você está mandando mensagens rápido demais." });
+          break;
+        }
+        st.stamps.push(now);
+        st.last = text;
+        st.lastAt = now;
+        this.chatState.set(ws, st);
+        this.recentChat.push({ id: me.id, name: me.name, text });
+        if (this.recentChat.length > 30) this.recentChat.shift();
+        this.broadcast({ t: "chat", from: me.id, text });
         break;
+      }
+
+      case "report": {
+        // denúncia de um jogador: vai para o registro do servidor (nome e últimas mensagens dele) e avisa o anfitrião
+        const target = this.players().find((p) => p.info.id === msg.id);
+        if (!target || target.info.id === me.id) break;
+        const now = Date.now();
+        if (now - (this.reportAt.get(ws) ?? 0) < 30_000) {
+          this.send(ws, { t: "error", code: "slow", message: "Calma! Espere um pouco para denunciar de novo." });
+          break;
+        }
+        this.reportAt.set(ws, now);
+        const lines = this.recentChat.filter((c) => c.id === target.info.id).slice(-8).map((c) => c.text);
+        console.log(`[${new Date().toISOString()}] DENUNCIA sala ${this.code}: "${me.name}" denunciou "${target.info.name}" (id ${target.info.id}); ultimas mensagens dele: ${JSON.stringify(lines)}`);
+        this.send(ws, { t: "notice", code: "report_sent" });
+        if (this.hostId !== me.id) {
+          const host = this.players().find((p) => p.info.id === this.hostId);
+          if (host) this.send(host.ws, { t: "notice", code: "report_host", name: target.info.name });
+        }
+        break;
+      }
 
       case "kick": {
         if (!isHost) return;
@@ -318,6 +380,18 @@ class Room {
         }
         break;
       }
+
+      case "ban": {
+        // remove e impede de voltar (pelo IP) enquanto a sala existir; o anfitrião não bane a si mesmo
+        if (!isHost) return;
+        const target = this.players().find((p) => p.info.id === msg.id);
+        if (!target || target.info.id === me.id) break;
+        const ip = this.ipOf.get(target.ws);
+        if (ip && this.banned.size < 50) this.banned.add(ip);
+        this.send(target.ws, { t: "error", code: "banned", message: "Você foi banido desta sala." });
+        target.ws.close(4006, "banned");
+        break;
+      }
     }
   }
 
@@ -325,6 +399,9 @@ class Room {
     const me = this.sockets.get(ws);
     if (!me) return;
     this.sockets.delete(ws);
+    this.ipOf.delete(ws);
+    this.chatState.delete(ws);
+    this.reportAt.delete(ws);
     const rest = this.players().sort((a, b) => a.info.joined - b.info.joined);
     this.broadcast({ t: "leave", id: me.id });
     if (me.id === this.hostId) {
@@ -428,7 +505,7 @@ const server = http.createServer(async (req, res) => {
         // corpo vazio ou inválido: usa os padrões
       }
       const code = newCode();
-      const room = new Room(code, cleanText(body.name, 32) || "Sala", body.public !== false);
+      const room = new Room(code, cleanText(body.name, 32) || "Sala", body.public !== false, cleanText(body.password, 40));
       rooms.set(code, room);
       return json(res, 200, { code, colo: room.colo, region: room.region });
     }
@@ -468,7 +545,7 @@ server.on("upgrade", (req, socket, head) => {
     ws.on("message", () => (ws.missed = 0));
     ws.on("close", (code, reason) => console.log(`[${new Date().toISOString()}] conexão fechada code=${code} ${reason}`));
     const name = cleanText(url.searchParams.get("name"), 24) || "Jogador";
-    room.join(ws, name, Number(url.searchParams.get("v") ?? 0));
+    room.join(ws, name, Number(url.searchParams.get("v") ?? 0), url.searchParams.get("pwh") ?? "", ip);
   });
 });
 

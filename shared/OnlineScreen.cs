@@ -75,6 +75,12 @@ public class OnlineScreen : MonoBehaviour
     private Button immortalButton;
     private Button speedButton;
     private Text modsText;
+    private InputField passwordField;
+    private int banArmedId = -1;
+    private float banArmedUntil;
+    private Button filterButton;
+    private int reportArmedId = -1;
+    private float reportArmedUntil;
     private Button queueAddButton;
     private Button queueClearButton;
     private Text queueText;
@@ -353,7 +359,8 @@ public class OnlineScreen : MonoBehaviour
         busy = true;
         ShowToast("Criando sala…");
         string code = null, error = null;
-        yield return client.CreateRoom(Loc.T("Sala de ") + OnlineClient.PlayerName, isPublic, (c, e) =>
+        string password = passwordField != null ? (passwordField.text ?? "").Trim() : "";
+        yield return client.CreateRoom(Loc.T("Sala de ") + OnlineClient.PlayerName, isPublic, password, (c, e) =>
         {
             code = c;
             error = e;
@@ -367,7 +374,7 @@ public class OnlineScreen : MonoBehaviour
         JoinRoom(code);
     }
 
-    private void JoinRoom(string code)
+    private void JoinRoom(string code, bool locked = false)
     {
         if (!SaveName())
         {
@@ -379,8 +386,14 @@ public class OnlineScreen : MonoBehaviour
             ShowToast("O código da sala tem 5 letras/números.");
             return;
         }
+        string password = passwordField != null ? (passwordField.text ?? "").Trim() : "";
+        if (locked && password.Length == 0)
+        {
+            ShowToast("Esta sala tem senha: digite no campo Senha da sala.");
+            return;
+        }
         ShowToast("Entrando na sala " + code + "…");
-        client.Join(code);
+        client.Join(code, password);
     }
 
     private bool SaveName()
@@ -496,25 +509,30 @@ public class OnlineScreen : MonoBehaviour
         left.offsetMin = new Vector2(30f, 30f);
         left.offsetMax = new Vector2(30f + 560f, 0f);
 
-        float y = -46f;
-        Label(left, "Seu nome", ref y);
+        float y = -36f;
+        Label(left, "Seu nome", ref y, 34f);
         nameField = MakeInputField(left, "Como os outros vão te ver", 30f, 36);
         nameField.characterLimit = 24;
         nameField.text = OnlineClient.PlayerName;
-        Row((RectTransform)nameField.transform, ref y, 84f);
+        Row((RectTransform)nameField.transform, ref y, 72f);
 
-        Label(left, "Região das salas", ref y);
+        Label(left, "Região das salas", ref y, 34f);
         regionButton = MakeButton(left, "", 34, () => ToggleMenu(regionMenu));
-        Row((RectTransform)regionButton.transform, ref y, 84f);
+        Row((RectTransform)regionButton.transform, ref y, 72f);
 
-        y -= 14f;
+        y -= 8f;
         var createPublic = MakeButton(left, "Criar sala pública", 36, () => StartCoroutine(CreateRoom(true)), light: true);
-        Row((RectTransform)createPublic.transform, ref y, 90f);
+        Row((RectTransform)createPublic.transform, ref y, 76f);
         var createPrivate = MakeButton(left, "Criar sala privada", 34, () => StartCoroutine(CreateRoom(false)));
-        Row((RectTransform)createPrivate.transform, ref y, 84f);
+        Row((RectTransform)createPrivate.transform, ref y, 70f);
 
-        y -= 14f;
-        Label(left, "Entrar com código", ref y);
+        // senha da sala: vale ao criar (sala protegida) e ao entrar numa sala com senha
+        passwordField = MakeInputField(left, "Senha da sala (opcional)", 30f, 30);
+        passwordField.contentType = InputField.ContentType.Password;
+        passwordField.characterLimit = 40;
+        Row((RectTransform)passwordField.transform, ref y, 72f);
+
+        Label(left, "Entrar com código", ref y, 34f);
         codeField = MakeInputField(left, "ABC12", 200f, 40);
         codeField.characterLimit = 5;
         codeField.characterValidation = InputField.CharacterValidation.Alphanumeric;
@@ -526,9 +544,9 @@ public class OnlineScreen : MonoBehaviour
                 codeField.text = up;
             }
         });
-        Row((RectTransform)codeField.transform, ref y, 90f);
+        Row((RectTransform)codeField.transform, ref y, 78f);
         var join = MakeButton(codeField.transform, "Entrar", 34, () => JoinRoom(codeField.text), light: true);
-        Place((RectTransform)join.transform, new Vector2(1f, 0.5f), new Vector2(-8f, 0f), new Vector2(180f, 74f), new Vector2(1f, 0.5f));
+        Place((RectTransform)join.transform, new Vector2(1f, 0.5f), new Vector2(-8f, 0f), new Vector2(180f, 64f), new Vector2(1f, 0.5f));
 
         // coluna da direita: salas públicas
         var right = NewRect("Rooms", root);
@@ -977,10 +995,10 @@ public class OnlineScreen : MonoBehaviour
     private void AddChatLine(OnlineClient.ChatLine line)
     {
         // o texto dos jogadores não pode virar formatação (cores, tamanhos...): "<" com um espaço invisível
-        string safe = (line.text ?? "").Replace("<", "<\u200B");
+        string safe = ((line.system ? line.text : ChatFilter.Clean(line.text)) ?? "").Replace("<", "<\u200B");
         string text = line.system
             ? $"<color=#ffffff77><i>{safe}</i></color>"
-            : $"<color={(line.mine ? "#8be28b" : "#ffd166")}>{(line.name ?? "").Replace("<", "<\u200B")}:</color>  {safe}";
+            : $"<color={(line.mine ? "#8be28b" : "#ffd166")}>{(ChatFilter.Clean(line.name) ?? "").Replace("<", "<\u200B")}:</color>  {safe}";
         var t = MakeText(chatContent, text, 28, Color.white);
         t.gameObject.name = "ChatLine"; // o texto dos jogadores não é traduzido (Loc)
         t.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -1082,7 +1100,7 @@ public class OnlineScreen : MonoBehaviour
         var row = MakePanel(playerList, "Player " + p.id, Card).rectTransform;
         row.gameObject.AddComponent<LayoutElement>().preferredHeight = PlayerRowHeight;
 
-        string name = p.name + (p.id == client.myId ? "  <color=#ffffff88>(você)</color>" : "");
+        string name = ChatFilter.Clean(p.name) + (p.id == client.myId ? "  <color=#ffffff88>(você)</color>" : "");
         var nameText = MakeText(row, name, 32, Color.white);
         nameText.rectTransform.anchorMin = Vector2.zero;
         nameText.rectTransform.anchorMax = Vector2.one;
@@ -1100,13 +1118,51 @@ public class OnlineScreen : MonoBehaviour
         tagText.rectTransform.anchorMin = Vector2.zero;
         tagText.rectTransform.anchorMax = Vector2.one;
         tagText.rectTransform.offsetMin = new Vector2(0f, 0f);
-        tagText.rectTransform.offsetMax = new Vector2(client.isHost && p.id != client.myId ? -180f : -30f, 0f);
+        tagText.rectTransform.offsetMax = new Vector2(p.id == client.myId ? -30f : client.isHost ? -348f : -200f, 0f);
 
         if (client.isHost && p.id != client.myId)
         {
             int id = p.id;
             var kick = MakeButton(row, "Remover", 28, () => client.Kick(id));
             Place((RectTransform)kick.transform, new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(160f, 50f), new Vector2(1f, 0.5f));
+            // banir pede um segundo clique (3 s) para não banir sem querer
+            bool armed = banArmedId == id && Time.unscaledTime < banArmedUntil;
+            var ban = MakeButton(row, armed ? "Confirmar" : "Banir", 28, () =>
+            {
+                if (banArmedId == id && Time.unscaledTime < banArmedUntil)
+                {
+                    banArmedId = -1;
+                    client.Ban(id);
+                }
+                else
+                {
+                    banArmedId = id;
+                    banArmedUntil = Time.unscaledTime + 3f;
+                    RefreshRoom();
+                }
+            });
+            Place((RectTransform)ban.transform, new Vector2(1f, 0.5f), new Vector2(-180f, 0f), new Vector2(150f, 50f), new Vector2(1f, 0.5f));
+        }
+        else if (!client.isHost && p.id != client.myId)
+        {
+            // denunciar também pede um segundo clique (3 s); o servidor registra o nome e as últimas mensagens do denunciado
+            int id = p.id;
+            bool armed = reportArmedId == id && Time.unscaledTime < reportArmedUntil;
+            var report = MakeButton(row, armed ? "Confirmar" : "Denunciar", 26, () =>
+            {
+                if (reportArmedId == id && Time.unscaledTime < reportArmedUntil)
+                {
+                    reportArmedId = -1;
+                    client.Report(id);
+                }
+                else
+                {
+                    reportArmedId = id;
+                    reportArmedUntil = Time.unscaledTime + 3f;
+                    RefreshRoom();
+                }
+            });
+            Place((RectTransform)report.transform, new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(180f, 50f), new Vector2(1f, 0.5f));
         }
     }
 
@@ -1122,7 +1178,7 @@ public class OnlineScreen : MonoBehaviour
         row.gameObject.AddComponent<LayoutElement>().preferredHeight = 128f;
 
         // nome da sala e fase
-        var title = MakeText(row, r.name, 38, Color.white);
+        var title = MakeText(row, r.name + (r.locked ? "  <color=#ffd166><size=26>(senha)</size></color>" : ""), 38, Color.white);
         title.alignment = TextAnchor.LowerLeft;
         title.rectTransform.anchorMin = new Vector2(0f, 0.5f);
         title.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -1155,7 +1211,8 @@ public class OnlineScreen : MonoBehaviour
         // partida em andamento: entra assistindo (o servidor marca como espectador até a partida acabar)
         bool canJoin = r.inGame || r.players < r.maxPlayers;
         string code = r.code;
-        var join = MakeButton(row, r.inGame ? "Assistir" : canJoin ? "Entrar" : "Cheia", 34, () => JoinRoom(code), light: canJoin);
+        bool locked = r.locked;
+        var join = MakeButton(row, r.inGame ? "Assistir" : canJoin ? "Entrar" : "Cheia", 34, () => JoinRoom(code, locked), light: canJoin);
         Place((RectTransform)join.transform, new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(240f, 92f), new Vector2(1f, 0.5f));
         join.interactable = canJoin;
     }
@@ -1610,34 +1667,36 @@ public class OnlineScreen : MonoBehaviour
         var title = MakeText(box, "Opções", 46, Color.white);
         Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(40f, -22f), new Vector2(600f, 80f));
 
-        float y = -120f;
-        Label(box, "Idioma", ref y);
+        float y = -100f;
+        Label(box, "Idioma", ref y, 34f);
         languageButton = MakeButton(box, "…", 32, CycleLanguage); // o texto vem de RefreshOptionsLabels
-        Row((RectTransform)languageButton.transform, ref y, 76f);
+        Row((RectTransform)languageButton.transform, ref y, 64f);
 
         if (OnlineOptions.CanEditServers)
         {
-            Label(box, "Servidor principal", ref y);
+            Label(box, "Servidor principal", ref y, 34f);
             primaryField = MakeInputField(box, "https://…", 30f, 30);
-            Row((RectTransform)primaryField.transform, ref y, 76f);
+            Row((RectTransform)primaryField.transform, ref y, 60f);
             if (OnlineOptions.HasFallbackServer)
             {
-                Label(box, "Servidor de reserva", ref y);
+                Label(box, "Servidor de reserva", ref y, 34f);
                 fallbackField = MakeInputField(box, "https://…", 30f, 30);
-                Row((RectTransform)fallbackField.transform, ref y, 76f);
+                Row((RectTransform)fallbackField.transform, ref y, 60f);
             }
             var hint = MakeText(box, "Todos da sala precisam usar o mesmo servidor.", 24, Muted);
-            Row(hint.rectTransform, ref y, 40f);
-            resetServersButton = MakeButton(box, "Restaurar servidores padrão", 28, ResetServersClicked);
-            Row((RectTransform)resetServersButton.transform, ref y, 70f);
+            Row(hint.rectTransform, ref y, 32f);
+            resetServersButton = MakeButton(box, "Restaurar servidores padrão", 26, ResetServersClicked);
+            Row((RectTransform)resetServersButton.transform, ref y, 64f);
         }
         if (OnlineOptions.HasUpdateCheck)
         {
-            updatesButton = MakeButton(box, "…", 28, ToggleUpdates);
-            Row((RectTransform)updatesButton.transform, ref y, 70f);
+            updatesButton = MakeButton(box, "…", 26, ToggleUpdates);
+            Row((RectTransform)updatesButton.transform, ref y, 64f);
         }
+        filterButton = MakeButton(box, "…", 26, ToggleFilter);
+        Row((RectTransform)filterButton.transform, ref y, 64f);
 
-        box.sizeDelta = new Vector2(1100f, -y + 140f);
+        box.sizeDelta = new Vector2(1100f, -y + 128f);
         var save = MakeButton(box, "Salvar e fechar", 34, SaveOptions, light: true);
         Place((RectTransform)save.transform, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(420f, 88f), new Vector2(0.5f, 0f));
         optionsView.SetActive(false);
@@ -1672,6 +1731,10 @@ public class OnlineScreen : MonoBehaviour
     private void RefreshOptionsLabels()
     {
         SetText(languageButton.GetComponentInChildren<Text>(), LanguageName(OnlineOptions.Language));
+        if (filterButton != null)
+        {
+            SetText(filterButton.GetComponentInChildren<Text>(), "Filtro de palavrões no chat: " + (OnlineOptions.ChatFilter ? "Sim" : "Não"));
+        }
         if (updatesButton != null)
         {
             SetText(updatesButton.GetComponentInChildren<Text>(),
@@ -1683,6 +1746,12 @@ public class OnlineScreen : MonoBehaviour
     {
         int i = Array.IndexOf(OnlineOptions.Languages, OnlineOptions.Language);
         OnlineOptions.Language = OnlineOptions.Languages[(i + 1) % OnlineOptions.Languages.Length];
+        RefreshOptionsLabels();
+    }
+
+    private void ToggleFilter()
+    {
+        OnlineOptions.ChatFilter = !OnlineOptions.ChatFilter;
         RefreshOptionsLabels();
     }
 
@@ -2034,10 +2103,10 @@ public class OnlineScreen : MonoBehaviour
 
     // ------------------------------------------------------------------ utilidades
 
-    private static void Label(RectTransform parent, string text, ref float y)
+    private static void Label(RectTransform parent, string text, ref float y, float height = 46f)
     {
         var t = MakeText(parent, text, 28, Muted);
-        Row(t.rectTransform, ref y, 46f);
+        Row(t.rectTransform, ref y, height);
     }
 
     // empilha um elemento em largura total na coluna, de cima para baixo

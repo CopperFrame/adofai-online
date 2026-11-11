@@ -28,6 +28,11 @@ const REGION_HINTS: Record<string, DurableObjectLocationHint> = {
   SA: "sam", NA: "enam", EU: "weur", AS: "apac", OC: "oc", AF: "afr",
 };
 
+async function sha256hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -75,7 +80,7 @@ export default {
         const hint = REGION_HINTS[region];
         const code = newCode();
         const room = env.ROOM.get(env.ROOM.idFromName(code), hint ? { locationHint: hint } : undefined);
-        const info = await room.init(code, cleanText(body.name, 32) || "Sala", body.public !== false, region);
+        const info = await room.init(code, cleanText(body.name, 32) || "Sala", body.public !== false, region, cleanText(body.password, 40));
         return json(info);
       }
       return json({ error: "method" }, 405);
@@ -100,6 +105,7 @@ export default {
 // ------------------------------------------------------------------------------------------------ Directory
 
 interface RoomListing {
+  locked?: boolean;
   code: string;
   name: string;
   colo: string;
@@ -162,10 +168,17 @@ interface RoomState {
   level: unknown; // definido pelo anfitrião (fase oficial ou da comunidade); o servidor não interpreta
   inGame: boolean;
   order?: number[]; // jogadores da partida em andamento (para quem entra assistindo)
+  pwh?: string; // hash da senha da sala (opcional)
+  banned?: string[]; // hashes (curtos) dos IPs banidos pelo anfitrião
+  ipById?: Record<string, string>; // hash do IP de cada jogador na sala, para banir
 }
 
 export class Room extends DurableObject<Env> {
   private state: RoomState | null = null;
+  // só em memória (somem se a sala hibernar): anti-spam do chat, denúncias e últimas mensagens para anexar a elas
+  private chatState = new Map<WebSocket, { stamps: number[]; last: string; lastAt: number }>();
+  private reportAt = new Map<WebSocket, number>();
+  private recentChat: { id: number; name: string; text: string }[] = [];
 
   private async load(): Promise<RoomState | null> {
     if (!this.state) {
@@ -178,9 +191,11 @@ export class Room extends DurableObject<Env> {
     if (this.state) await this.ctx.storage.put("state", this.state);
   }
 
-  async init(code: string, name: string, isPublic: boolean, region: string): Promise<{ code: string; colo: string; region: string }> {
+  async init(code: string, name: string, isPublic: boolean, region: string, password = ""): Promise<{ code: string; colo: string; region: string }> {
     const colo = await this.detectColo();
-    this.state = { code, name, isPublic, colo, region, nextId: 1, hostId: 0, level: null, inGame: false };
+    // senha opcional: guarda só o hash; o cliente manda sha256(CODIGO:senha) ao entrar
+    const pwh = password ? await sha256hex(code + ":" + password) : undefined;
+    this.state = { code, name, isPublic, colo, region, nextId: 1, hostId: 0, level: null, inGame: false, pwh };
     await this.save();
     await this.publish();
     // sala criada e abandonada sem ninguém entrar some sozinha
@@ -265,6 +280,7 @@ export class Room extends DurableObject<Env> {
       region: s.region,
       players: count,
       maxPlayers: MAX_PLAYERS,
+      locked: !!s.pwh,
       inGame: s.inGame,
       level: level?.title ? String(level.title).slice(0, 64) : "",
       updated: Date.now(),
@@ -288,6 +304,18 @@ export class Room extends DurableObject<Env> {
       server.close(4001, "version");
       return new Response(null, { status: 101, webSocket: client });
     }
+    // banido pelo anfitrião (hash do IP) ou senha da sala errada
+    const ipHash = request.headers.get("CF-Connecting-IP") ? (await sha256hex(request.headers.get("CF-Connecting-IP") + ":" + s.code)).slice(0, 16) : "";
+    if (ipHash && (s.banned ?? []).includes(ipHash)) {
+      this.send(server, { t: "error", code: "banned", message: "Você foi banido desta sala." });
+      server.close(4006, "banned");
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (s.pwh && url.searchParams.get("pwh") !== s.pwh) {
+      this.send(server, { t: "error", code: "password", message: "Senha da sala incorreta." });
+      server.close(4005, "password");
+      return new Response(null, { status: 101, webSocket: client });
+    }
     const current = this.players();
     const racers = current.filter((p) => !p.info.spectator).length;
     const spectators = current.length - racers;
@@ -301,6 +329,7 @@ export class Room extends DurableObject<Env> {
 
     const info: PlayerInfo = { id: s.nextId++, name, ready: false, joined: Date.now(), spectator: asSpectator };
     server.serializeAttachment(info);
+    if (ipHash) s.ipById = { ...(s.ipById ?? {}), [String(info.id)]: ipHash };
     if (s.hostId === 0 || !this.players().some((p) => p.info.id === s.hostId)) {
       s.hostId = info.id;
     }
@@ -421,9 +450,47 @@ export class Room extends DurableObject<Env> {
         this.broadcast({ t: "ev", from: me.id, d: msg.d }, me.id);
         break;
 
-      case "chat":
-        this.broadcast({ t: "chat", from: me.id, text: cleanText(msg.text, 140) });
+      case "chat": {
+        const text = cleanText(msg.text, 140);
+        if (!text) break;
+        // anti-spam: no máximo 5 mensagens em 8 s, intervalo mínimo de 0,6 s e sem repetir a mesma em 6 s
+        const now = Date.now();
+        const st = this.chatState.get(ws) ?? { stamps: [], last: "", lastAt: 0 };
+        st.stamps = st.stamps.filter((t) => now - t < 8000);
+        if (st.stamps.length >= 5 || (st.stamps.length > 0 && now - st.stamps[st.stamps.length - 1] < 600) || (text === st.last && now - st.lastAt < 6000)) {
+          this.chatState.set(ws, st);
+          this.send(ws, { t: "error", code: "slow", message: "Calma! Você está mandando mensagens rápido demais." });
+          break;
+        }
+        st.stamps.push(now);
+        st.last = text;
+        st.lastAt = now;
+        this.chatState.set(ws, st);
+        this.recentChat.push({ id: me.id, name: me.name, text });
+        if (this.recentChat.length > 30) this.recentChat.shift();
+        this.broadcast({ t: "chat", from: me.id, text });
         break;
+      }
+
+      case "report": {
+        // denúncia de um jogador: vai para o registro do Worker (nome e últimas mensagens dele) e avisa o anfitrião
+        const target = this.players().find((p) => p.info.id === msg.id);
+        if (!target || target.info.id === me.id) break;
+        const now = Date.now();
+        if (now - (this.reportAt.get(ws) ?? 0) < 30_000) {
+          this.send(ws, { t: "error", code: "slow", message: "Calma! Espere um pouco para denunciar de novo." });
+          break;
+        }
+        this.reportAt.set(ws, now);
+        const lines = this.recentChat.filter((c) => c.id === target.info.id).slice(-8).map((c) => c.text);
+        console.log(`DENUNCIA sala ${s.code}: "${me.name}" denunciou "${target.info.name}" (id ${target.info.id}); ultimas mensagens dele: ${JSON.stringify(lines)}`);
+        this.send(ws, { t: "notice", code: "report_sent" });
+        if (s.hostId !== me.id) {
+          const host = this.players().find((p) => p.info.id === s.hostId);
+          if (host) this.send(host.ws, { t: "notice", code: "report_host", name: target.info.name });
+        }
+        break;
+      }
 
       case "kick": {
         if (!isHost) return;
@@ -432,6 +499,21 @@ export class Room extends DurableObject<Env> {
           this.send(target.ws, { t: "error", code: "kicked", message: "Você foi removido da sala." });
           target.ws.close(4004, "kicked");
         }
+        break;
+      }
+
+      case "ban": {
+        // remove e impede de voltar (pelo IP) enquanto a sala existir; o anfitrião não bane a si mesmo
+        if (!isHost) return;
+        const target = this.players().find((p) => p.info.id === msg.id);
+        if (!target || target.info.id === me.id) break;
+        const hash = s.ipById?.[String(target.info.id)];
+        if (hash && (s.banned ?? []).length < 50) {
+          s.banned = [...(s.banned ?? []), hash];
+          await this.save();
+        }
+        this.send(target.ws, { t: "error", code: "banned", message: "Você foi banido desta sala." });
+        target.ws.close(4006, "banned");
         break;
       }
     }
@@ -454,6 +536,7 @@ export class Room extends DurableObject<Env> {
       .filter((p) => p.ws !== ws)
       .sort((a, b) => a.info.joined - b.info.joined);
     this.broadcast({ t: "leave", id: me.id });
+    if (s.ipById) delete s.ipById[String(me.id)];
     if (me.id === s.hostId) {
       s.hostId = rest.length > 0 ? rest[0].info.id : 0;
       if (rest.length > 0) this.broadcast({ t: "host", id: s.hostId });

@@ -11,12 +11,13 @@ namespace AdofaiOnlineMod
     [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Version = "0.2.6";
+        public const string Version = "0.2.7";
         internal static BepInEx.Logging.ManualLogSource Log;
 
         /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>
         internal static readonly List<string> PatchProblems = new List<string>();
         internal static BepInEx.Configuration.ConfigEntry<bool> CheckForUpdates;
+        internal static BepInEx.Configuration.ConfigEntry<bool> ChatFilterEntry;
 
         private void Awake()
         {
@@ -37,6 +38,27 @@ namespace AdofaiOnlineMod
             CheckForUpdates = Config.Bind("General", "CheckForUpdates", true,
                 "Ask GitHub (api.github.com) once at startup whether a newer version of the mod exists, and show a notice in the level selector. No personal data is sent.");
 
+            ChatFilterEntry = Config.Bind("General", "ChatFilter", true,
+                "Hide swear words in the chat and in player names with ****. You can add words in BepInEx/config/AdofaiOnline-lang/filter.txt (one per line).");
+            try
+            {
+                string filterFile = System.IO.Path.Combine(Paths.ConfigPath, "AdofaiOnline-lang", "filter.txt");
+                if (System.IO.File.Exists(filterFile))
+                {
+                    foreach (string line in System.IO.File.ReadAllLines(filterFile))
+                    {
+                        if (line.Trim().Length > 0 && !line.TrimStart().StartsWith("#"))
+                        {
+                            ChatFilter.AddWord(line.Trim());
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.LogWarning("filter.txt ignorado: " + e.Message);
+            }
+
             ServerConfig.Primary = (primary.Value ?? "").Trim();
             ServerConfig.Fallback = (fallback.Value ?? "").Trim();
             if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
@@ -44,7 +66,7 @@ namespace AdofaiOnlineMod
                 Log.LogWarning("No server configured: set one in the Online > Options screen or in BepInEx/config/adofai.port.online.cfg");
             }
 
-            OnlineOptions.Store = new ConfigStore(language, primary, fallback, CheckForUpdates);
+            OnlineOptions.Store = new ConfigStore(language, primary, fallback, CheckForUpdates, ChatFilterEntry);
             OnlineOptions.HasFallbackServer = true;
             OnlineOptions.HasUpdateCheck = true;
             OnlineOptions.DefaultLanguage = "auto";
@@ -111,11 +133,13 @@ namespace AdofaiOnlineMod
     internal sealed class ConfigStore : OnlineOptions.IStore
     {
         private readonly BepInEx.Configuration.ConfigEntry<string> language, primary, fallback;
-        private readonly BepInEx.Configuration.ConfigEntry<bool> updates;
+        private readonly BepInEx.Configuration.ConfigEntry<bool> updates, filter;
 
         public ConfigStore(BepInEx.Configuration.ConfigEntry<string> language, BepInEx.Configuration.ConfigEntry<string> primary,
-            BepInEx.Configuration.ConfigEntry<string> fallback, BepInEx.Configuration.ConfigEntry<bool> updates)
+            BepInEx.Configuration.ConfigEntry<string> fallback, BepInEx.Configuration.ConfigEntry<bool> updates,
+            BepInEx.Configuration.ConfigEntry<bool> filter)
         {
+            this.filter = filter;
             this.language = language;
             this.primary = primary;
             this.fallback = fallback;
@@ -134,6 +158,8 @@ namespace AdofaiOnlineMod
                     return fallback.Value;
                 case "updates":
                     return updates.Value ? "true" : "false";
+                case "filter":
+                    return filter.Value ? "true" : "false";
                 default:
                     return defaultValue;
             }
@@ -156,6 +182,9 @@ namespace AdofaiOnlineMod
                     break;
                 case "updates":
                     updates.Value = value == "true";
+                    break;
+                case "filter":
+                    filter.Value = value == "true";
                     break;
             }
         }

@@ -53,6 +53,7 @@ public class OnlineClient : MonoBehaviour
         public int maxPlayers;
         public bool inGame;
         public string level;
+        public bool locked; // sala com senha
     }
 
     public enum State
@@ -347,9 +348,13 @@ public class OnlineClient : MonoBehaviour
         }
     }
 
-    public IEnumerator CreateRoom(string name, bool isPublic, Action<string, string> done)
+    public IEnumerator CreateRoom(string name, bool isPublic, string password, Action<string, string> done)
     {
         var body = new JObject { ["name"] = name, ["public"] = isPublic, ["region"] = Region };
+        if (!string.IsNullOrEmpty(password))
+        {
+            body["password"] = password; // o servidor guarda só o hash
+        }
         using (var req = new UnityWebRequest(ServerUrl + "/rooms", "POST"))
         {
             req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body.ToString()));
@@ -378,13 +383,27 @@ public class OnlineClient : MonoBehaviour
 
     // ------------------------------------------------------------------ WebSocket
 
-    public void Join(string code)
+    public static string Sha256Hex(string text)
+    {
+        using (var sha = System.Security.Cryptography.SHA256.Create())
+        {
+            var sb = new StringBuilder();
+            foreach (byte b in sha.ComputeHash(Encoding.UTF8.GetBytes(text)))
+            {
+                sb.Append(b.ToString("x2"));
+            }
+            return sb.ToString();
+        }
+    }
+
+    public void Join(string code, string password = null)
     {
         Leave(notify: false);
         code = (code ?? "").Trim().ToUpperInvariant();
         string name = string.IsNullOrWhiteSpace(PlayerName) ? Loc.T("Jogador") : PlayerName;
         string wsUrl = ServerUrl.Replace("https://", "wss://").Replace("http://", "ws://") +
-                       $"/rooms/{code}/ws?v={Protocol}&name={Uri.EscapeDataString(name)}";
+                       $"/rooms/{code}/ws?v={Protocol}&name={Uri.EscapeDataString(name)}" +
+                       (string.IsNullOrEmpty(password) ? "" : "&pwh=" + Sha256Hex(code + ":" + password)); // a senha não vai em texto puro
         state = State.Connecting;
         roomCode = code;
         clockSynced = false;
@@ -568,6 +587,12 @@ public class OnlineClient : MonoBehaviour
 
     public void Kick(int id) => Send(new JObject { ["t"] = "kick", ["id"] = id });
 
+    /// <summary>Anfitrião: remove e impede de voltar à sala (pelo IP, enquanto a sala existir).</summary>
+    public void Ban(int id) => Send(new JObject { ["t"] = "ban", ["id"] = id });
+
+    /// <summary>Denuncia um jogador: o servidor registra o nome e as últimas mensagens dele e avisa o anfitrião.</summary>
+    public void Report(int id) => Send(new JObject { ["t"] = "report", ["id"] = id });
+
     // ------------------------------------------------------------------ mensagens
 
     private void Update()
@@ -732,11 +757,25 @@ public class OnlineClient : MonoBehaviour
                 OnChat?.Invoke(from, text);
                 break;
             }
+            case "notice":
+            {
+                // avisos do servidor (denúncias): o texto é montado aqui, no idioma do jogador
+                string noticeCode = msg.Value<string>("code");
+                if (noticeCode == "report_sent")
+                {
+                    AddChat(new ChatLine { system = true, text = Loc.T("Denúncia enviada. Obrigado.") });
+                }
+                else if (noticeCode == "report_host")
+                {
+                    AddChat(new ChatLine { system = true, text = Loc.T("Um jogador denunciou ") + (msg.Value<string>("name") ?? "?") });
+                }
+                break;
+            }
             case "error":
             {
                 string code = msg.Value<string>("code");
                 OnError?.Invoke(msg.Value<string>("message") ?? code);
-                if (code == "version" || code == "full" || code == "ingame" || code == "kicked")
+                if (code == "version" || code == "full" || code == "ingame" || code == "kicked" || code == "banned" || code == "password")
                 {
                     Leave();
                 }

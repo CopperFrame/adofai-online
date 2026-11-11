@@ -13,7 +13,9 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 - Rooms with up to 4 players: public (listed by region) or private (join with a code)
 - Race mode: other players appear as ghosts with their name above them
 - Spectator mode: join a match in progress or keep watching after you finish
-- Room chat
+- Room chat, with a message rate limit and an optional swear-word filter (on by default; Options screen)
+- Room tools for the host: optional **room password**, **remove** and **ban** players (ban is by IP while the room exists);
+  every player can **report** another one
 - Host-selected modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
 - The host can pick any level installed on their PC, or one from ADOFAI.gg / TUF (players who don't have it
   download it automatically). The picker lists your local **and Steam Workshop** levels with their artwork, with search and All / Local / Workshop filters
@@ -83,6 +85,21 @@ mod version in the User-Agent). To turn it off, set `CheckForUpdates = false` in
 
 If a game update breaks part of the mod, the same notice tells you which part and where to find a new version.
 
+### What the room server sees
+
+- Your **player name**, the room you join, what you chat and the game events needed to run the match (hits, falls, results).
+  **Results are reported by each player's own game; the server does not verify them**, so treat rankings as friendly.
+- **Room passwords** are never sent as plain text when joining (the game sends `sha256(CODE:password)`); the server keeps
+  only that hash. Creating a room sends the password once over HTTPS.
+- **Bans** are by IP: the Node server keeps the banned IPs in memory only while the room exists; the Cloudflare server
+  keeps a short hash of the IP, scoped to the room. Nothing is shared between rooms. People on the same network as a
+  banned player are blocked too.
+- **Reports** (button next to a player's name): the server writes a line in its own log with the room code, the two
+  names and the reported player's last chat messages (up to 8, kept in memory only until then), and tells the host that
+  a player was reported. Nothing else is stored, and no one is banned automatically.
+- The **swear-word filter** runs on your side, only on what you see. Add your own words in
+  `BepInEx/config/AdofaiOnline-lang/filter.txt` (one per line, `#` for comments).
+
 ## Add your own language
 
 The mod ships with English, Portuguese and Korean, and you can add more **without touching the code**. Start the game once:
@@ -140,7 +157,9 @@ contém código nem arquivos do jogo.
 - Salas de até 4 jogadores: públicas (listadas por região) ou privadas (entra-se com um código)
 - Modo corrida: os outros jogadores aparecem como fantasmas, com o nome acima
 - Modo espectador: entre numa partida em andamento ou continue assistindo depois de terminar
-- Chat da sala
+- Chat da sala, com limite de mensagens por segundo e filtro opcional de palavrões (ligado por padrão; tela de Opções)
+- Ferramentas do anfitrião: **senha da sala** opcional, **remover** e **banir** jogadores (o banimento é por IP enquanto a sala existir);
+  qualquer jogador pode **denunciar** outro
 - Modificadores escolhidos pelo anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade**
   (de 0.5x a 2x)
 - O anfitrião pode escolher qualquer fase instalada no PC dele, ou uma do ADOFAI.gg / TUF (quem não tiver a fase
@@ -193,6 +212,22 @@ mods; ao relatar um problema, informe a versão do jogo e anexe o `BepInEx/LogOu
    arquivo bloqueado pelo Windows (botão direito na DLL → Propriedades → Desbloquear); atualização do jogo quebrou um patch
    (o seletor mostra um aviso); no Linux/Steam Deck use a opção de inicialização `WINEDLLOVERRIDES="winhttp=n,b" %command%`.
    Se o `BepInEx/LogOutput.log` nem existir, o BepInEx nunca iniciou.
+
+### O que o servidor da sala enxerga
+
+- Seu **nome de jogador**, a sala em que você entra, o que você escreve no chat e os eventos de jogo necessários para a partida
+  (acertos, quedas, resultados). **Os resultados são enviados pelo jogo de cada jogador; o servidor não os confere**, então
+  trate os rankings como brincadeira entre amigos.
+- A **senha da sala** não vai em texto puro ao entrar (o jogo manda `sha256(CÓDIGO:senha)`); o servidor guarda só esse hash.
+  Ao criar a sala, a senha é enviada uma vez por HTTPS.
+- **Banimentos** são por IP: o servidor Node guarda os IPs banidos só na memória enquanto a sala existir; o da Cloudflare
+  guarda um hash curto do IP, restrito à sala. Nada é compartilhado entre salas. Quem está na mesma rede do banido também
+  fica bloqueado.
+- **Denúncias** (botão ao lado do nome do jogador): o servidor escreve uma linha no próprio registro com o código da sala,
+  os dois nomes e as últimas mensagens de chat do denunciado (até 8, guardadas só na memória até então) e avisa o anfitrião
+  de que alguém foi denunciado. Nada mais é guardado e ninguém é banido automaticamente.
+- O **filtro de palavrões** roda no seu lado, só no que você vê. Acrescente palavras em
+  `BepInEx/config/AdofaiOnline-lang/filter.txt` (uma por linha, `#` para comentários).
 
 ### Adicione seu idioma
 
