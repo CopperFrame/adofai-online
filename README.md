@@ -1,4 +1,4 @@
-# ADOFAI Online — multiplayer rooms for A Dance of Fire and Ice (PC mod)
+# ADOFAI Online — Multiplayer Mod for A Dance of Fire and Ice
 
 Unofficial, fan-made **BepInEx mod** for the Steam version of **A Dance of Fire and Ice** (7th Beat Games): create or
 join a room, pick a custom level and race with friends **online**.
