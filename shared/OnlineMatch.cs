@@ -4,7 +4,7 @@
 //     "pronto" com a fase instalada.
 //   - Início sincronizado: no "start" do servidor todos carregam a fase; quando cada um chega na tela de
 //     "pressione para começar" avisa "carregado". O anfitrião espera todos (ou um tempo-limite) e marca a hora
-//     de início no relógio do servidor; cada celular começa a fase nessa hora em vez de esperar um toque.
+//     de início no relógio do servidor; cada aparelho começa a fase nessa hora em vez de esperar um toque.
 //   - Fim: ao voltar para o CLS a partida acaba; o anfitrião avisa o servidor para liberar a sala.
 // Os jogadores ainda jogam cada um na sua tela; ver os outros na pista é a fase 3.
 using System;

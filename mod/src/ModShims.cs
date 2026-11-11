@@ -1,4 +1,4 @@
-// Peças que no jogo do port ficam dentro das classes do jogo (scnCLS) e que o jogo original não tem.
+// Peças (métodos de scnCLS e ImportLevelsCLS) que o mod precisa e que o jogo original não tem.
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -17,7 +17,7 @@ namespace AdofaiOnlineMod
 
     public static class ClsExtensions
     {
-        // no port esse método foi acrescentado ao ImportLevelsCLS: abre o painel e instala os .zip já baixados
+        // abre o painel de importação e instala os .zip já baixados
         public static void ImportAndInstall(this ImportLevelsCLS panel, string[] zipPaths)
         {
             panel.OnOpenImportPanel();

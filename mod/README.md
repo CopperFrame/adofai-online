@@ -20,7 +20,6 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 - **Level queue:** the host can line up to 8 levels; when a match ends, the next one is picked automatically
 - If the level is not on ADOFAI.gg / TUF, it is uploaded to the room server automatically so everyone can
   download it (max 150 MB, kept for 10 minutes)
-- Works with the Android port of the same project: PC and phone can play in the same room
 
 ## Install (Windows, Steam)
 
@@ -73,7 +72,7 @@ please open an issue with the game version and `BepInEx/LogOutput.log`.
 
 The mod is a [BepInEx](https://github.com/BepInEx/BepInEx) plugin that uses [Harmony](https://github.com/pardeike/Harmony)
 patches to hook the level start, the fail/restart flow and a few input/audio spots. The online code itself
-(`shared/`, one level up) is the same code used by the Android port, and talks JSON over WebSocket to a small room server.
+(`shared/`, one level up) is compiled together with the plugin and talks JSON over WebSocket to a small room server.
 
 ## Updates and privacy
 
@@ -149,7 +148,6 @@ contém código nem arquivos do jogo.
 - **Fila de fases:** o anfitrião pode enfileirar até 8 fases; quando a partida acaba, a próxima entra sozinha
 - Se a fase não estiver no ADOFAI.gg / TUF, ela é enviada automaticamente ao servidor da sala para todos
   baixarem (máximo de 150 MB, guardada por 10 minutos)
-- Funciona junto com o port Android do mesmo projeto: PC e celular podem jogar na mesma sala
 
 ### Instalação (Windows, Steam)
 
@@ -254,7 +252,6 @@ MIT, veja o [LICENSE](../LICENSE).
 - 방장이 고르는 모디파이어: **무적**(실수해도 계속 진행)과 **속도**(0.5x ~ 2x)
 - PC에 있는 커스텀 레벨 또는 ADOFAI.gg / TUF의 레벨 사용(없는 사람은 자동으로 다운로드). 그 외의 레벨은 방 서버로 자동 업로드됩니다(최대 150 MB, 10분 보관)
 - 화면은 영어, 포르투갈어, **한국어**를 지원하며 게임 언어를 따릅니다(`Language = ko`로 강제할 수 있음)
-- 프로젝트의 Android 포트와 같은 방에서 함께 플레이할 수 있습니다
 
 ### 설치 (Windows, Steam)
 

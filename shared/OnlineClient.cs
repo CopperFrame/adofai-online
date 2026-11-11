@@ -27,16 +27,10 @@ public class OnlineClient : MonoBehaviour
     // Servidores, em ordem de preferência: o próprio (Oracle Cloud, São Paulo; ping baixo no Brasil) e o da
     // Cloudflare (reserva). O jogo usa o primeiro que responder; todos os jogadores com a mesma versão caem no
     // mesmo servidor. Vazio = ainda não configurado.
-#if ADOFAI_MOD
     // no mod de PC os servidores vêm do arquivo de configuração do BepInEx: nada fixo no código público
     public static string PrimaryServerUrl => AdofaiOnlineMod.ServerConfig.Primary;
     public static string FallbackServerUrl => AdofaiOnlineMod.ServerConfig.Fallback;
     public static string DefaultServerUrl => FallbackServerUrl;
-#else
-    public const string PrimaryServerUrl = "https://150-230-231-11.sslip.io";
-    public const string FallbackServerUrl = "https://adofai-port-online.adolfheim.workers.dev";
-    public const string DefaultServerUrl = FallbackServerUrl;
-#endif
     private const string ServerPref = "online.server";
     private const string NamePref = "online.name";
     private const string RegionPref = "online.region";

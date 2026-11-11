@@ -1,4 +1,4 @@
-// Port: kit de interface montada por código (UGUI) para as telas novas do port (download de fases, online).
+// Kit de interface montada por código (UGUI) para as telas novas (download de fases, online).
 // Visual do menu de pausa: blocos cinza-claros de cantos arredondados com texto escuro sobre fundo escuro, e a
 // fonte do jogo (com troca automática para uma fonte do sistema quando o texto tem caracteres que ela não tem).
 using System;
@@ -127,7 +127,7 @@ public static class PortUi
         return null;
     }
 
-    /// <summary>Painel escuro translúcido (colunas e janelas das telas do port).</summary>
+    /// <summary>Painel escuro translúcido (colunas e janelas das telas).</summary>
     public static Image MakeStonePanel(Transform parent, string name) => MakePanel(parent, name, new Color(0f, 0f, 0f, 0.4f));
 
     /// <summary>Botão de pedra do jogo, com texto branco e sombra (ou o arredondado simples, se a arte não estiver carregada).</summary>
@@ -232,8 +232,8 @@ public static class PortUi
         return b;
     }
 
-    /// <summary>Canvas em tela cheia por cima do jogo, escalada para telas de celular.</summary>
-    /// <summary>A cena do jogo pode não ter EventSystem; sem ele os botões das telas do port não recebem toques.</summary>
+    /// <summary>Canvas em tela cheia por cima do jogo, escalada para telas pequenas.</summary>
+    /// <summary>A cena do jogo pode não ter EventSystem; sem ele os botões das telas do mod não recebem toques.</summary>
     public static void EnsureEventSystem()
     {
         if (UnityEngine.EventSystems.EventSystem.current != null)
@@ -255,7 +255,7 @@ public static class PortUi
         canvas.sortingOrder = sortingOrder;
         var scaler = canvasGo.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1600f, 900f); // ~20% maior que 1080p: telas de celular são pequenas
+        scaler.referenceResolution = new Vector2(1600f, 900f); // ~20% maior que 1080p: telas pequenas ficam apertadas
         scaler.matchWidthOrHeight = 1f;
         return canvasGo.transform;
     }

@@ -1,4 +1,4 @@
-// Port (online, fase 3): os outros jogadores aparecem na pista como "fantasmas", numa corrida.
+// Os outros jogadores aparecem na pista como "fantasmas", numa corrida.
 //
 // Cada fantasma segue o tempo da música do próprio dono. Quando alguém começa ou recomeça (do início ou de um
 // checkpoint), avisa os outros com "run": a hora do servidor e a posição na música naquele instante (e reenvia a

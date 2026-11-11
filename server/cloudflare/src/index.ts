@@ -1,4 +1,4 @@
-// Servidor de partidas online do port (Cloudflare Workers + Durable Objects, plano gratuito).
+// Servidor de partidas online do ADOFAI Online (Cloudflare Workers + Durable Objects, plano gratuito).
 //
 // Rotas:
 //   GET  /                       -> status/versão
@@ -11,7 +11,7 @@
 // joga na mesma região. Uma lista de salas públicas fica num Durable Object único (Directory).
 //
 // A sala não depende de nenhum jogador: se o anfitrião sair, o próximo a ter entrado vira anfitrião.
-// O servidor só repassa mensagens; quem julga acertos/erros de cada jogador é o próprio celular dele.
+// O servidor só repassa mensagens; quem julga acertos/erros de cada jogador é o próprio aparelho dele.
 import { DurableObject } from "cloudflare:workers";
 
 export interface Env {

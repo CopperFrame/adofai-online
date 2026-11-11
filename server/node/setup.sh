@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala o servidor online do port numa máquina Ubuntu (Oracle Cloud "Always Free", região São Paulo).
+# Instala o servidor online do ADOFAI Online numa máquina Ubuntu (Oracle Cloud "Always Free", região São Paulo).
 # Uso, dentro da máquina, na pasta com server.mjs e package.json:
 #     sudo bash setup.sh
 # Faz: Node.js 22, dependências, serviço systemd (sobe sozinho e reinicia se cair), Caddy com HTTPS automático
@@ -35,7 +35,7 @@ chown -R adofai:adofai "$APP_DIR"
 
 cat >/etc/systemd/system/adofai-online.service <<EOF
 [Unit]
-Description=Servidor online do port de A Dance of Fire and Ice
+Description=Servidor online do ADOFAI Online (A Dance of Fire and Ice)
 After=network-online.target
 
 [Service]

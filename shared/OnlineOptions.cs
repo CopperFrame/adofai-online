@@ -1,6 +1,6 @@
-// Port (online): opções que o jogador muda na tela "Opções" do Online (idioma, servidores, atualizações).
+// Opções que o jogador muda na tela "Opções" do Online (idioma, servidores, atualizações).
 //
-// Onde o valor fica guardado depende de quem usa: no port Android, em PlayerPrefs; no mod de PC, no arquivo de
+// O valor fica guardado no arquivo de
 // configuração do BepInEx (o Plugin troca o Store). A tela só fala com esta classe.
 using System;
 using System.Linq;
@@ -21,7 +21,7 @@ public static class OnlineOptions
         {
             if (key == "primary")
             {
-                return OnlineClient.ServerOverride; // no port, "servidor principal" é o endereço manual
+                return OnlineClient.ServerOverride;
             }
             try
             {
@@ -53,7 +53,7 @@ public static class OnlineOptions
 
     public static IStore Store = new PrefsStore();
 
-    // o que a tela de opções mostra: o mod liga tudo; o port só idioma e um servidor
+    // o que a tela de opções mostra
     public static bool CanEditServers = true;
     public static bool HasFallbackServer;
     public static bool HasUpdateCheck;

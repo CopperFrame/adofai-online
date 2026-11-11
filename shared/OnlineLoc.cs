@@ -1,11 +1,10 @@
-// Port (online): idioma das telas do online.
+// Idioma das telas do online.
 //
 // O texto do código está em português. Em inglês, cada texto de tela é traduzido na hora de desenhar
 // (Loc.T para os poucos textos montados no código, e LocalizeTexts para todos os componentes Text das telas do
 // online). Textos de jogadores (nomes, chat, títulos de fases) não passam por aqui.
 //
 // No mod de PC o idioma segue o do jogo (ou a opção "Language" do arquivo de configuração do BepInEx).
-// No port Android o padrão continua sendo o português.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,11 +32,7 @@ public static partial class Loc
     }
 
     public static Mode Preferred =
-#if ADOFAI_MOD
         Mode.Auto;
-#else
-        Mode.Portuguese;
-#endif
 
     /// <summary>Idioma das telas: o escolhido, ou (Auto) o do jogo: português, coreano ou, nos demais, inglês.</summary>
     public static Lang Language

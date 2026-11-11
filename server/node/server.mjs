@@ -1,4 +1,4 @@
-// Servidor de partidas online do port, versão Node.js (para uma máquina própria, como a Oracle Cloud "Always Free"
+// Servidor de partidas online do ADOFAI Online, versão Node.js (para uma máquina própria, como a Oracle Cloud "Always Free"
 // em São Paulo). Fala exatamente o mesmo protocolo do servidor da Cloudflare (Server/online): o jogo usa um ou
 // outro sem diferença. Tudo fica na memória do processo (uma máquina só): salas, jogadores e a lista pública.
 //
@@ -472,10 +472,10 @@ server.on("upgrade", (req, socket, head) => {
   });
 });
 
-// conexões que caíram sem avisar (celular que perdeu o sinal): o ping do protocolo WebSocket as detecta
+// conexões que caíram sem avisar (jogador que perdeu o sinal): o ping do protocolo WebSocket as detecta
 setInterval(() => {
   for (const ws of wss.clients) {
-    // o celular pode ficar uns segundos sem responder (carregando fase, tela apagada): só derruba depois de
+    // o aparelho pode ficar uns segundos sem responder (carregando fase, tela apagada): só derruba depois de
     // ~2 min sem nenhum sinal (pong ou qualquer mensagem do jogo, que manda ping próprio a cada poucos segundos)
     ws.missed = (ws.missed ?? 0) + 1;
     if (ws.missed > 4) {
@@ -511,5 +511,5 @@ function cleanMods(m) {
 
 
 server.listen(PORT, HOST, () => {
-  console.log(`servidor online do port em http://${HOST}:${PORT} (região ${REGION}, ${SERVER_NAME})`);
+  console.log(`servidor online do ADOFAI Online em http://${HOST}:${PORT} (região ${REGION}, ${SERVER_NAME})`);
 });

@@ -1,4 +1,4 @@
-// Port (online): tabela de tradução para o coreano (ver OnlineLoc.cs). A chave é o texto em português, igual ao
+// Tabela de tradução para o coreano (ver OnlineLoc.cs). A chave é o texto em português, igual ao
 // de OnlineLoc; o que não estiver aqui cai para o inglês.
 using System.Collections.Generic;
 

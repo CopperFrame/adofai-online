@@ -1,4 +1,4 @@
-// Port (online): modo espectador. Usado por quem entrou na sala com a partida em andamento e por quem já terminou.
+// Modo espectador. Usado por quem entrou na sala com a partida em andamento e por quem já terminou.
 //
 // O espectador roda a fase de verdade, com o jogador local em piloto automático e invisível, no mesmo ponto da
 // música do jogador assistido. Assim a fase mostra os próprios efeitos (câmera, decorações, filtros...) e toca a
@@ -285,14 +285,10 @@ public class OnlineSpectate : MonoBehaviour
         targetId = racing[i];
     }
 
-    // no jogo do port o contador é uma propriedade do scrController; no mod (jogo original) vem por reflexão
+    // o contador é um campo privado do scrController: lido por reflexão
     private static int WaitCount(scrController c)
     {
-#if ADOFAI_MOD
         return AdofaiOnlineMod.Hooks.WaitForStartCount(c);
-#else
-        return c.WaitForStartCount;
-#endif
     }
 
     private void Leave()

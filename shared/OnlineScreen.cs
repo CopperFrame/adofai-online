@@ -32,7 +32,7 @@ public class OnlineScreen : MonoBehaviour
 
     public static string MenuLabel => "Online";
 
-    /// <summary>Abrir a tela assim que o CLS carregar (veio pelo portal Online do menu principal).</summary>
+    /// <summary>Abrir a tela assim que o CLS carregar.</summary>
     public static bool openOnArrival;
 
     private OnlineClient client => OnlineClient.Instance;
@@ -94,7 +94,7 @@ public class OnlineScreen : MonoBehaviour
         }
         var go = new GameObject("OnlineScreen");
         instance = go.AddComponent<OnlineScreen>();
-        OnlineOptions.ApplyLanguage(); // idioma escolhido nas opções (no port: PlayerPrefs; padrão português)
+        OnlineOptions.ApplyLanguage(); // idioma escolhido nas opções
         instance.Build();
         if (openOnArrival)
         {
@@ -922,7 +922,7 @@ public class OnlineScreen : MonoBehaviour
         frt.offsetMax = new Vector2(-220f, 84f);
         chatField.onEndEdit.AddListener(_ =>
         {
-            // Enter no teclado (PC) ou "concluído" no teclado do celular envia
+            // Enter no teclado (PC) ou "concluído" no teclado na tela envia
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) ||
                 (TouchScreenKeyboard.isSupported && chatField.touchScreenKeyboard != null &&
                  chatField.touchScreenKeyboard.status == TouchScreenKeyboard.Status.Done))
@@ -1186,7 +1186,7 @@ public class OnlineScreen : MonoBehaviour
         SetOpen(false);
     }
 
-    /// <summary>Botão "voltar" do celular / Esc.</summary>
+    /// <summary>Botão "voltar" / Esc.</summary>
     public static void Back()
     {
         if (instance != null)

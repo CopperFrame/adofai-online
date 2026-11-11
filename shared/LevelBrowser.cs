@@ -10,7 +10,7 @@
 //
 // Depois de baixar, o .zip vai para o importador do jogo (ImportLevelsCLS), que descompacta, valida e move a fase
 // para a pasta Worlds. A interface é montada por código (UGUI), numa Canvas por cima do CLS, e abre pelo botão
-// "Baixar fases" do menu de pausa (no lugar da Oficina Steam, no mobile).
+// "Baixar fases" do menu de pausa.
 using System;
 using System.Collections;
 using System.Collections.Generic;
