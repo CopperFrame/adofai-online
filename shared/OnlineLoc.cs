@@ -359,8 +359,23 @@ public static partial class Loc
         {
             hooked = true;
             Canvas.willRenderCanvases += TranslateAll;
+            // o Unity monta o desenho dos textos antes de willRenderCanvases: sem traduzir antes, todo texto trocado aparecia
+            // em português por um quadro (piscava). Traduzir no fim do quadro, antes disso, evita.
+            var go = new GameObject("LocDriver");
+            go.hideFlags = HideFlags.HideAndDontSave;
+            UnityEngine.Object.DontDestroyOnLoad(go);
+            go.AddComponent<Driver>();
         }
     }
+
+    private sealed class Driver : MonoBehaviour
+    {
+        private void LateUpdate() => TranslateAll();
+    }
+
+    /// <summary>O Text já mostra a tradução desse texto original? Então atribuir de novo só o faria piscar.</summary>
+    public static bool IsShown(Text t, string source)
+        => t != null && Entries.TryGetValue(t, out Entry e) && e.source == source && t.text == e.shown;
 
     private static void TranslateAll()
     {

@@ -1283,8 +1283,9 @@ public class OnlineScreen : MonoBehaviour
         Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -20f), new Vector2(420f, 80f));
         pickerCount = MakeText(box, "", 28, Muted);
         Place(pickerCount.rectTransform, new Vector2(0f, 1f), new Vector2(470f, -20f), new Vector2(380f, 80f));
-        var community = MakeButton(box, "Da comunidade (ADOFAI.gg / TUF)", 32, PickCommunityLevel, light: true);
-        Place((RectTransform)community.transform, new Vector2(1f, 1f), new Vector2(-30f, -20f), new Vector2(560f, 80f));
+        // as placas de pedra têm proporção fixa (comprida ~5,6:1, curta ~3,9:1): botões com esse formato ficam com o texto no lugar
+        var community = MakeButton(box, "Da comunidade (ADOFAI.gg / TUF)", 26, PickCommunityLevel, light: true);
+        Place((RectTransform)community.transform, new Vector2(1f, 1f), new Vector2(-30f, -16f), new Vector2(540f, 96f));
 
         // busca à esquerda; filtros (todas / locais / da oficina) à direita
         levelPickerSearch = MakeInputField(box, "Buscar nas minhas fases", 30f, 34);
@@ -1293,19 +1294,19 @@ public class OnlineScreen : MonoBehaviour
         srt.anchorMax = new Vector2(1f, 1f);
         srt.pivot = new Vector2(0.5f, 1f);
         srt.offsetMin = new Vector2(30f, -200f);
-        srt.offsetMax = new Vector2(-30f - 3 * 160f, -116f);
+        srt.offsetMax = new Vector2(-30f - 3 * 196f, -116f);
         levelPickerSearch.onValueChanged.AddListener(FillLevelPicker);
         string[] chipNames = { "Todas", "Locais", "Oficina" };
         pickerChips = new Button[3];
         for (int k = 0; k < 3; k++)
         {
             int filter = k;
-            var chip = MakeButton(box, chipNames[k], 28, () =>
+            var chip = MakeButton(box, chipNames[k], 26, () =>
             {
                 pickerFilter = filter;
                 FillLevelPicker(levelPickerSearch.text);
             });
-            Place((RectTransform)chip.transform, new Vector2(1f, 1f), new Vector2(-30f - (2 - k) * 160f, -116f), new Vector2(150f, 84f), new Vector2(1f, 1f));
+            Place((RectTransform)chip.transform, new Vector2(1f, 1f), new Vector2(-30f - (2 - k) * 196f, -134f), new Vector2(188f, 48f), new Vector2(1f, 1f));
             pickerChips[k] = chip;
         }
 

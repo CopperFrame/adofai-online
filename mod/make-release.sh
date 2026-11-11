@@ -14,12 +14,12 @@ VERSION="$(grep -oE 'Version = "[0-9]+\.[0-9]+\.[0-9]+"' "$HERE/src/Plugin.cs" |
 
 rm -rf "$OUT"
 mkdir -p "$OUT/zip"
-cp "$HERE/dist/AdofaiOnlineMod.dll" "$HERE/installer/Install-ADOFAI-Online.bat" "$HERE/installer/Install-ADOFAI-Online.ps1" "$OUT/"
-cp "$HERE/dist/AdofaiOnlineMod.dll" "$HERE/installer/Install-ADOFAI-Online.bat" "$HERE/installer/Install-ADOFAI-Online.ps1" "$HERE/README.md" "$HERE/../LICENSE" "$OUT/zip/"
+cp "$HERE/dist/AdofaiOnlineMod.dll" "$HERE/installer/Install-ADOFAI-Online.bat" "$HERE/installer/Install-ADOFAI-Online.ps1" "$HERE/installer/Diagnose-ADOFAI-Online.bat" "$OUT/"
+cp "$HERE/dist/AdofaiOnlineMod.dll" "$HERE/installer/Install-ADOFAI-Online.bat" "$HERE/installer/Install-ADOFAI-Online.ps1" "$HERE/installer/Diagnose-ADOFAI-Online.bat" "$HERE/README.md" "$HERE/../LICENSE" "$OUT/zip/"
 (cd "$OUT/zip" && powershell -NoProfile -Command "Compress-Archive -Path * -DestinationPath ../AdofaiOnline-$VERSION.zip -Force")
 rm -rf "$OUT/zip"
 
 # checksums (the installer verifies the DLL against this file)
-(cd "$OUT" && sha256sum AdofaiOnlineMod.dll Install-ADOFAI-Online.bat Install-ADOFAI-Online.ps1 "AdofaiOnline-$VERSION.zip" > SHA256SUMS.txt)
+(cd "$OUT" && sha256sum AdofaiOnlineMod.dll Install-ADOFAI-Online.bat Install-ADOFAI-Online.ps1 Diagnose-ADOFAI-Online.bat "AdofaiOnline-$VERSION.zip" > SHA256SUMS.txt)
 echo "OK: version $VERSION"
 ls -l "$OUT"

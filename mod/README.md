@@ -57,6 +57,18 @@ To uninstall: delete `AdofaiOnlineMod.dll` (or the whole `BepInEx` folder, `winh
 Tested with game build 26397875 (Unity 6000.3.25f1) and BepInEx 5.4.23.6. Game updates can break mods;
 please open an issue with the game version and `BepInEx/LogOutput.log`.
 
+### The Online buttons do not show up
+
+1. Make sure the game is **closed**, then run `Install-ADOFAI-Online.bat` again (it also updates an old BepInEx and unblocks the files).
+2. Start the game, open the **custom level selector** (not the main menu), close the game and double-click
+   **`Diagnose-ADOFAI-Online.bat`**. It checks the installation and writes `ADOFAI-Online-diagnostic.txt` on your Desktop
+   (no personal names inside). Send that file in an issue or to whoever is helping you.
+3. Typical causes: the antivirus removed `winhttp.dll` (add the game folder as an exclusion and install again);
+   BepInEx older than 5.4.23 (the installer updates it); the installer found another copy of the game (another Steam
+   library); the file is blocked by Windows (right-click the DLL → Properties → Unblock); a game update broke a patch
+   (the level selector then shows a notice); Linux/Steam Deck needs the launch option `WINEDLLOVERRIDES="winhttp=n,b" %command%`.
+   If `BepInEx/LogOutput.log` does not exist at all, BepInEx never started.
+
 ## How it works
 
 The mod is a [BepInEx](https://github.com/BepInEx/BepInEx) plugin that uses [Harmony](https://github.com/pardeike/Harmony)
@@ -172,6 +184,18 @@ Para desinstalar, apague o `AdofaiOnlineMod.dll` (ou a pasta `BepInEx`, o `winht
 Testado na versão 26397875 do jogo (Unity 6000.3.25f1) com BepInEx 5.4.23.6. Atualizações do jogo podem quebrar
 mods; ao relatar um problema, informe a versão do jogo e anexe o `BepInEx/LogOutput.log`.
 
+#### Os botões do Online não aparecem
+
+1. Com o jogo **fechado**, rode o `Install-ADOFAI-Online.bat` de novo (ele também atualiza um BepInEx antigo e desbloqueia os arquivos).
+2. Abra o jogo, entre no **seletor de fases personalizadas** (não no menu principal), feche o jogo e dê dois cliques em
+   **`Diagnose-ADOFAI-Online.bat`**. Ele confere a instalação e grava `ADOFAI-Online-diagnostic.txt` na Área de Trabalho
+   (sem nomes pessoais). Envie esse arquivo numa issue ou para quem está te ajudando.
+3. Causas comuns: o antivírus removeu o `winhttp.dll` (adicione a pasta do jogo como exceção e instale de novo); BepInEx
+   mais antigo que a 5.4.23 (o instalador atualiza); o instalador achou outra cópia do jogo (outra biblioteca do Steam);
+   arquivo bloqueado pelo Windows (botão direito na DLL → Propriedades → Desbloquear); atualização do jogo quebrou um patch
+   (o seletor mostra um aviso); no Linux/Steam Deck use a opção de inicialização `WINEDLLOVERRIDES="winhttp=n,b" %command%`.
+   Se o `BepInEx/LogOutput.log` nem existir, o BepInEx nunca iniciou.
+
 ### Adicione seu idioma
 
 O mod traz inglês, português e coreano, e dá para acrescentar outros **sem mexer no código**. Abra o jogo uma vez: o mod cria
@@ -256,3 +280,12 @@ Windows SmartScreen 경고가 나올 수 있습니다("추가 정보" → "실�
 제거하려면 `AdofaiOnlineMod.dll`을 지우면 됩니다(또는 `BepInEx` 폴더, `winhttp.dll`, `doorstop_config.ini`).
 
 게임 업데이트로 모드가 동작하지 않을 수 있습니다. 문제를 제보할 때는 게임 버전과 `BepInEx/LogOutput.log`를 함께 알려 주세요.
+
+#### 온라인 버튼이 보이지 않을 때
+
+1. 게임을 **종료**한 뒤 `Install-ADOFAI-Online.bat`를 다시 실행하세요(오래된 BepInEx도 업데이트하고 파일 차단도 해제합니다).
+2. 게임을 실행해 **커스텀 레벨 선택 화면**(메인 메뉴 아님)을 연 뒤 게임을 종료하고 **`Diagnose-ADOFAI-Online.bat`**를 더블클릭하세요.
+   설치 상태를 확인하고 바탕화면에 `ADOFAI-Online-diagnostic.txt`를 만듭니다(개인 이름 없음). 이 파일을 이슈에 올리거나 도와주는 사람에게 보내세요.
+3. 흔한 원인: 백신이 `winhttp.dll`을 삭제함(게임 폴더를 예외로 추가 후 재설치), BepInEx 5.4.23 미만(설치 프로그램이 업데이트), 다른 게임 폴더에 설치됨,
+   Windows의 파일 차단(DLL 우클릭 → 속성 → 차단 해제), 게임 업데이트로 패치 실패(레벨 선택 화면에 안내가 표시됨),
+   Linux/Steam Deck은 실행 옵션 `WINEDLLOVERRIDES="winhttp=n,b" %command%` 필요.

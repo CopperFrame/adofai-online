@@ -263,6 +263,10 @@ public static class PortUi
     // fonte do jogo quando ela tem todos os caracteres; senão, uma fonte do sistema (títulos em CJK etc.)
     public static void SetText(Text t, string s)
     {
+        if (Loc.IsShown(t, s))
+        {
+            return; // nada mudou (a tela se atualiza a cada clique): reatribuir faria o texto piscar
+        }
         t.text = s;
         Font f = GameFont;
         foreach (char c in StripTags(s))
