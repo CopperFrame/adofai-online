@@ -205,6 +205,25 @@ public class OnlineClient : MonoBehaviour
     /// <summary>Fila de fases (o anfitrião passa para a próxima quando a partida acaba).</summary>
     public JArray queue { get; private set; } = new JArray();
     public const int MaxQueue = 8;
+    /// <summary>
+    /// Líder das fases (0 = ninguém): quem o anfitrião escolheu para trocar e recusar a fase da sala. O anfitrião (criador da
+    /// sala) continua podendo tudo; só ele remove, bane, muda modificadores e começa a partida.
+    /// </summary>
+    public int leaderId { get; private set; }
+    public bool isLeader => state == State.InRoom && leaderId != 0 && myId == leaderId;
+    /// <summary>Pode escolher a fase da sala, a fila e as sugestões: o anfitrião ou o líder.</summary>
+    public bool canPick => isHost || isLeader;
+
+    /// <summary>Fase sugerida por um jogador, esperando o anfitrião ou o líder aceitar ou recusar.</summary>
+    public class Suggestion
+    {
+        public int id;
+        public int by;
+        public string byName;
+        public JObject level;
+    }
+
+    public readonly List<Suggestion> suggestions = new List<Suggestion>();
     public bool inGame { get; private set; }
     /// <summary>Jogadores da partida em andamento (para quem entrou assistindo).</summary>
     public int[] roomOrder { get; private set; } = new int[0];
@@ -620,6 +639,34 @@ public class OnlineClient : MonoBehaviour
     public void Kick(int id) => Send(new JObject { ["t"] = "kick", ["id"] = id });
 
     /// <summary>Anfitrião: remove e impede de voltar à sala (pelo IP, enquanto a sala existir).</summary>
+    /// <summary>Anfitrião: escolhe quem é o líder das fases (0 tira o líder).</summary>
+    public void SetLeader(int id) => Send(new JObject { ["t"] = "leader", ["id"] = id });
+
+    /// <summary>Qualquer jogador: sugere uma fase para o anfitrião ou o líder aceitar.</summary>
+    public void Suggest(JObject levelInfo) => Send(new JObject { ["t"] = "suggest", ["level"] = levelInfo });
+
+    /// <summary>Retira uma sugestão sua; o anfitrião e o líder recusam qualquer uma.</summary>
+    public void RemoveSuggestion(int id) => Send(new JObject { ["t"] = "suggestion_remove", ["id"] = id });
+
+    /// <summary>Anfitrião ou líder: toca a sugestão agora (vira a fase da sala) ou a coloca no fim da fila.</summary>
+    public void AcceptSuggestion(int id, bool now) => Send(new JObject { ["t"] = "suggestion_accept", ["id"] = id, ["mode"] = now ? "now" : "queue" });
+
+    private void ReadSuggestions(JToken list)
+    {
+        suggestions.Clear();
+        if (!(list is JArray arr))
+        {
+            return;
+        }
+        foreach (var item in arr)
+        {
+            if (item["level"] is JObject lv)
+            {
+                suggestions.Add(new Suggestion { id = item.Value<int>("id"), by = item.Value<int>("by"), byName = item.Value<string>("byName") ?? "?", level = lv });
+            }
+        }
+    }
+
     public void Ban(int id) => Send(new JObject { ["t"] = "ban", ["id"] = id });
 
     /// <summary>Denuncia um jogador: o servidor registra o nome e as últimas mensagens dele e avisa o anfitrião.</summary>
@@ -709,10 +756,30 @@ public class OnlineClient : MonoBehaviour
                 OnRoomChanged?.Invoke();
                 break;
             }
-            case "host":
-                hostId = msg.Value<int>("id");
+            case "leader":
+            {
+                leaderId = msg.Value<int?>("id") ?? 0;
+                var lead = GetPlayer(leaderId);
+                AddChat(new ChatLine { system = true, text = lead != null ? lead.name + Loc.T(" é o líder das fases") : Loc.T("Sem líder das fases") });
                 OnRoomChanged?.Invoke();
                 break;
+            }
+            case "suggestions":
+                ReadSuggestions(msg["suggestions"]);
+                OnRoomChanged?.Invoke();
+                break;
+            case "host":
+            {
+                int previous = hostId;
+                hostId = msg.Value<int>("id");
+                var newHost = GetPlayer(hostId);
+                if (previous != hostId && newHost != null)
+                {
+                    AddChat(new ChatLine { system = true, text = newHost.name + Loc.T(" é o novo anfitrião") });
+                }
+                OnRoomChanged?.Invoke();
+                break;
+            }
             case "ready":
             {
                 var p = GetPlayer(msg.Value<int>("id"));
@@ -851,6 +918,8 @@ public class OnlineClient : MonoBehaviour
         level = room["level"];
         mods = room["mods"] as JObject ?? new JObject();
         queue = room["queue"] as JArray ?? new JArray();
+        leaderId = room.Value<int?>("leader") ?? 0;
+        ReadSuggestions(room["suggestions"]);
         if (level != null && level.Type == JTokenType.Null)
         {
             level = null;

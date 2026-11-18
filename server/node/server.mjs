@@ -173,6 +173,9 @@ class Room {
     this.level = null;
     this.mods = {};
     this.queue = [];
+    this.leaderId = 0; // líder das fases: escolhe e recusa fases (o anfitrião passa o papel; o anfitrião também pode tudo isso)
+    this.suggestions = []; // fases sugeridas pelos jogadores: { id, by, byName, level }
+    this.nextSuggestion = 1;
     this.inGame = false;
     this.order = [];
     this.updated = Date.now();
@@ -206,6 +209,8 @@ class Room {
       level: this.level,
       mods: this.mods,
       queue: this.queue,
+      leader: this.leaderId,
+      suggestions: this.suggestions,
       inGame: this.inGame,
       order: this.inGame ? this.order : [],
       players: this.players()
@@ -294,6 +299,7 @@ class Room {
     const me = this.sockets.get(ws);
     if (!me || !msg || typeof msg !== "object") return;
     const isHost = me.id === this.hostId;
+    const canPick = isHost || (this.leaderId !== 0 && me.id === this.leaderId); // escolher e recusar fases
     switch (msg.t) {
       case "ping":
         // sincronização de relógio: o cliente estima o atraso e a diferença para serverTime
@@ -314,14 +320,14 @@ class Room {
         break;
 
       case "queue":
-        // fila de fases (só o anfitrião, a qualquer momento): o anfitrião avança a fila quando a partida acaba
-        if (!isHost) return;
+        // fila de fases (anfitrião ou líder, a qualquer momento): o anfitrião avança a fila quando a partida acaba
+        if (!canPick) return;
         this.queue = cleanQueue(msg.queue);
         this.broadcast({ t: "queue", queue: this.queue });
         break;
 
       case "level":
-        if (!isHost || this.inGame) return;
+        if (!canPick || this.inGame) return;
         this.level = msg.level ?? null;
         // trocar de fase desmarca o "pronto" de todos (precisam baixar/confirmar de novo)
         for (const info of this.sockets.values()) info.ready = false;
@@ -412,6 +418,74 @@ class Room {
         break;
       }
 
+      case "leader": {
+        // só o anfitrião (criador) escolhe quem é o líder das fases; id 0 (ou o próprio anfitrião) tira o líder
+        if (!isHost) return;
+        const wanted = Number(msg.id);
+        if (!wanted || wanted === this.hostId) {
+          this.leaderId = 0;
+        } else {
+          const target = this.players().find((p) => p.info.id === wanted);
+          if (!target) break;
+          this.leaderId = wanted;
+        }
+        this.broadcast({ t: "leader", id: this.leaderId });
+        break;
+      }
+
+      case "suggest": {
+        // qualquer jogador pode sugerir uma fase; o anfitrião ou o líder toca, enfileira ou recusa
+        if (me.spectator) return;
+        const level = cleanQueue([msg.level])[0];
+        if (!level) break;
+        const same = (a, b) => (a.key && a.key === b.key) || (a.hash && a.hash === b.hash) || (a.title === b.title && a.artist === b.artist && a.author === b.author);
+        if (this.suggestions.some((x) => same(x.level, level))) break;
+        if (this.suggestions.length >= SUGGESTIONS_MAX) {
+          this.send(ws, { t: "error", code: "slow", message: "A lista de sugestões está cheia." });
+          break;
+        }
+        if (this.suggestions.filter((x) => x.by === me.id).length >= SUGGESTIONS_PER_PLAYER) {
+          this.send(ws, { t: "error", code: "slow", message: "Você já tem 3 sugestões na lista: espere uma ser aceita ou retire uma." });
+          break;
+        }
+        this.suggestions.push({ id: this.nextSuggestion++, by: me.id, byName: me.name, level });
+        this.broadcast({ t: "suggestions", suggestions: this.suggestions });
+        break;
+      }
+
+      case "suggestion_remove": {
+        // quem sugeriu retira a própria; o anfitrião ou o líder recusa qualquer uma
+        const i = this.suggestions.findIndex((x) => x.id === msg.id);
+        if (i < 0 || (this.suggestions[i].by !== me.id && !canPick)) break;
+        this.suggestions.splice(i, 1);
+        this.broadcast({ t: "suggestions", suggestions: this.suggestions });
+        break;
+      }
+
+      case "suggestion_accept": {
+        // anfitrião ou líder: "now" vira a fase da sala (fora de partida); "queue" vai para o fim da fila
+        if (!canPick) return;
+        const i = this.suggestions.findIndex((x) => x.id === msg.id);
+        if (i < 0) break;
+        const picked = this.suggestions[i];
+        if (msg.mode === "queue") {
+          if (this.queue.length >= QUEUE_MAX) {
+            this.send(ws, { t: "error", code: "slow", message: "A fila está cheia." });
+            break;
+          }
+          this.queue = [...this.queue, picked.level];
+          this.broadcast({ t: "queue", queue: this.queue });
+        } else {
+          if (this.inGame) break;
+          this.level = picked.level;
+          for (const info of this.sockets.values()) info.ready = false;
+          this.broadcast({ t: "level", level: this.level });
+        }
+        this.suggestions.splice(i, 1);
+        this.broadcast({ t: "suggestions", suggestions: this.suggestions });
+        break;
+      }
+
       case "ban": {
         // remove e impede de voltar (pelo IP) enquanto a sala existir; o anfitrião não bane a si mesmo
         if (!isHost) return;
@@ -430,6 +504,10 @@ class Room {
     const me = this.sockets.get(ws);
     if (!me) return;
     this.sockets.delete(ws);
+    if (me.id === this.leaderId) {
+      this.leaderId = 0;
+      this.broadcast({ t: "leader", id: 0 });
+    }
     this.ipOf.delete(ws);
     this.chatState.delete(ws);
     this.reportAt.delete(ws);
@@ -601,6 +679,8 @@ setInterval(() => {
   }
 }, 30_000);
 const QUEUE_MAX = 8;
+const SUGGESTIONS_MAX = 20;
+const SUGGESTIONS_PER_PLAYER = 3;
 const QUEUE_FIELDS = ["source", "hash", "title", "artist", "author", "url", "key"];
 
 function cleanQueue(q) {

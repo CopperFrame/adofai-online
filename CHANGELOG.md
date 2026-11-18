@@ -3,6 +3,10 @@
 Each version has its own page under [Releases](https://github.com/CopperFrame/adofai-online/releases) with the install files.
 Cada versão tem a própria página em [Releases](https://github.com/CopperFrame/adofai-online/releases), com os arquivos de instalação.
 
+## 0.2.10
+- Level leader: the creator can hand over the role of picking, queueing and rejecting levels (remove/ban stay with the creator). / Líder das fases.
+- Level suggestions from any player, accepted or rejected by the host or the leader. / Sugestões de fases.
+
 ## 0.2.9
 - Public player numbers in the lobby (`/stats` on every server): players online, rooms with players, active today. / Números públicos de jogadores no lobby.
 - Sound when someone joins your room (can be turned off). / Som quando alguém entra na sala.

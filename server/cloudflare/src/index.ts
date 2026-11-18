@@ -34,6 +34,21 @@ async function sha256hex(text: string): Promise<string> {
 }
 
 // hash curto (IP + dia) para contar "ativos hoje" sem guardar o IP; só números saem do servidor
+const QUEUE_MAX = 8;
+const SUGGESTIONS_MAX = 20;
+const SUGGESTIONS_PER_PLAYER = 3;
+
+// uma fase sugerida: só os campos conhecidos, com tamanho limitado (a mesma limpeza da fila de fases)
+function cleanLevel(item: unknown): Record<string, string> | null {
+  if (!item || typeof item !== "object") return null;
+  const src = item as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const f of ["source", "hash", "title", "artist", "author", "url", "key"]) {
+    if (src[f] != null) out[f] = cleanText(src[f], f === "url" ? 400 : 120);
+  }
+  return out.title ? out : null;
+}
+
 async function statsHash(ip: string | null): Promise<string> {
   if (!ip) return "";
   return (await sha256hex(ip + ":" + new Date().toISOString().slice(0, 10) + ":stats")).slice(0, 16);
@@ -237,6 +252,9 @@ interface RoomState {
   hostId: number;
   mods?: Record<string, unknown>; // modificadores da partida (imortal, velocidade), definidos pelo anfitrião
   queue?: unknown[]; // fila de fases (o anfitrião avança quando a partida acaba)
+  leaderId?: number; // líder das fases: escolhe e recusa fases (o anfitrião passa o papel)
+  suggestions?: { id: number; by: number; byName: string; level: Record<string, string> }[]; // fases sugeridas pelos jogadores
+  nextSuggestion?: number;
   level: unknown; // definido pelo anfitrião (fase oficial ou da comunidade); o servidor não interpreta
   inGame: boolean;
   order?: number[]; // jogadores da partida em andamento (para quem entra assistindo)
@@ -323,6 +341,8 @@ export class Room extends DurableObject<Env> {
       level: s.level,
       mods: s.mods ?? {},
       queue: s.queue ?? [],
+      leader: s.leaderId ?? 0,
+      suggestions: s.suggestions ?? [],
       inGame: s.inGame,
       order: s.inGame ? s.order ?? [] : [],
       players: this.players()
@@ -434,6 +454,7 @@ export class Room extends DurableObject<Env> {
       return;
     }
     const isHost = me.id === s.hostId;
+    const canPick = isHost || (!!s.leaderId && me.id === s.leaderId); // escolher e recusar fases
 
     switch (msg.t) {
       case "ping":
@@ -463,7 +484,7 @@ export class Room extends DurableObject<Env> {
       }
 
       case "queue": {
-        if (!isHost) return;
+        if (!canPick) return;
         const out: Record<string, string>[] = [];
         const fields = ["source", "hash", "title", "artist", "author", "url", "key"];
         const q = Array.isArray(msg.queue) ? (msg.queue as Record<string, unknown>[]).slice(0, 8) : [];
@@ -482,7 +503,7 @@ export class Room extends DurableObject<Env> {
       }
 
       case "level":
-        if (!isHost || s.inGame) return;
+        if (!canPick || s.inGame) return;
         s.level = msg.level ?? null;
         for (const p of this.players()) {
           // trocar de fase desmarca o "pronto" de todos (precisam baixar/confirmar de novo)
@@ -583,6 +604,88 @@ export class Room extends DurableObject<Env> {
         break;
       }
 
+      case "leader": {
+        // só o anfitrião (criador) escolhe quem é o líder das fases; id 0 (ou o próprio anfitrião) tira o líder
+        if (!isHost) return;
+        const wanted = Number(msg.id);
+        if (!wanted || wanted === s.hostId) {
+          s.leaderId = 0;
+        } else {
+          const target = this.players().find((p) => p.info.id === wanted);
+          if (!target) break;
+          s.leaderId = wanted;
+        }
+        await this.save();
+        this.broadcast({ t: "leader", id: s.leaderId });
+        break;
+      }
+
+      case "suggest": {
+        // qualquer jogador pode sugerir uma fase; o anfitrião ou o líder toca, enfileira ou recusa
+        if (me.spectator) return;
+        const level = cleanLevel(msg.level);
+        if (!level) break;
+        const list = s.suggestions ?? [];
+        const same = (a: Record<string, string>, b: Record<string, string>) =>
+          (!!a.key && a.key === b.key) || (!!a.hash && a.hash === b.hash) || (a.title === b.title && a.artist === b.artist && a.author === b.author);
+        if (list.some((x) => same(x.level, level))) break;
+        if (list.length >= SUGGESTIONS_MAX) {
+          this.send(ws, { t: "error", code: "slow", message: "A lista de sugestões está cheia." });
+          break;
+        }
+        if (list.filter((x) => x.by === me.id).length >= SUGGESTIONS_PER_PLAYER) {
+          this.send(ws, { t: "error", code: "slow", message: "Você já tem 3 sugestões na lista: espere uma ser aceita ou retire uma." });
+          break;
+        }
+        const id = s.nextSuggestion ?? 1;
+        s.nextSuggestion = id + 1;
+        s.suggestions = [...list, { id, by: me.id, byName: me.name, level }];
+        await this.save();
+        this.broadcast({ t: "suggestions", suggestions: s.suggestions });
+        break;
+      }
+
+      case "suggestion_remove": {
+        // quem sugeriu retira a própria; o anfitrião ou o líder recusa qualquer uma
+        const list = s.suggestions ?? [];
+        const i = list.findIndex((x) => x.id === msg.id);
+        if (i < 0 || (list[i].by !== me.id && !canPick)) break;
+        s.suggestions = list.filter((_, k) => k !== i);
+        await this.save();
+        this.broadcast({ t: "suggestions", suggestions: s.suggestions });
+        break;
+      }
+
+      case "suggestion_accept": {
+        // anfitrião ou líder: "now" vira a fase da sala (fora de partida); "queue" vai para o fim da fila
+        if (!canPick) return;
+        const list = s.suggestions ?? [];
+        const i = list.findIndex((x) => x.id === msg.id);
+        if (i < 0) break;
+        const picked = list[i];
+        if (msg.mode === "queue") {
+          if ((s.queue ?? []).length >= QUEUE_MAX) {
+            this.send(ws, { t: "error", code: "slow", message: "A fila está cheia." });
+            break;
+          }
+          s.queue = [...(s.queue ?? []), picked.level];
+          this.broadcast({ t: "queue", queue: s.queue });
+        } else {
+          if (s.inGame) break;
+          s.level = picked.level;
+          for (const p of this.players()) {
+            p.info.ready = false;
+            p.ws.serializeAttachment(p.info);
+          }
+          this.broadcast({ t: "level", level: s.level });
+        }
+        s.suggestions = list.filter((_, k) => k !== i);
+        await this.save();
+        this.broadcast({ t: "suggestions", suggestions: s.suggestions });
+        if (msg.mode !== "queue") await this.publish();
+        break;
+      }
+
       case "ban": {
         // remove e impede de voltar (pelo IP) enquanto a sala existir; o anfitrião não bane a si mesmo
         if (!isHost) return;
@@ -618,6 +721,10 @@ export class Room extends DurableObject<Env> {
       .sort((a, b) => a.info.joined - b.info.joined);
     this.broadcast({ t: "leave", id: me.id });
     if (s.ipById) delete s.ipById[String(me.id)];
+    if (s.leaderId === me.id) {
+      s.leaderId = 0;
+      this.broadcast({ t: "leader", id: 0 });
+    }
     if (me.id === s.hostId) {
       s.hostId = rest.length > 0 ? rest[0].info.id : 0;
       if (rest.length > 0) this.broadcast({ t: "host", id: s.hostId });

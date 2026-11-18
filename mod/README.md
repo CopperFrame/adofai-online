@@ -16,6 +16,9 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 - **Players online** shown in the lobby (who is in a room now, rooms with players and players active today), and an optional
   **sound when someone joins your room** (Options)
 - Room chat, with a message rate limit and an optional swear-word filter (on by default; Options screen)
+- **Level leader and suggestions:** the room creator can hand the *level leader* role to another player (only picks, queues and
+  rejects levels; it cannot remove, ban, change modifiers or start the match). Any player can **suggest levels** (up to 3 each); the
+  host or the leader plays, queues or rejects them
 - Room tools for the host: optional **room password**, **remove** and **ban** players (ban is by IP while the room exists);
   every player can **report** another one
 - Host-selected modifiers: **Immortal** (keep going after a miss) and **Speed** (0.5x – 2x)
@@ -166,6 +169,9 @@ contém código nem arquivos do jogo.
 - **Jogadores online** no lobby (quem está numa sala agora, salas com jogadores e jogadores ativos hoje) e um **som opcional
   quando alguém entra na sua sala** (Opções)
 - Chat da sala, com limite de mensagens por segundo e filtro opcional de palavrões (ligado por padrão; tela de Opções)
+- **Líder das fases e sugestões:** o criador da sala pode passar o papel de *líder das fases* para outro jogador (só escolhe, enfileira
+  e recusa fases; não remove, não bane, não muda modificadores nem começa a partida). Qualquer jogador pode **sugerir fases** (até 3 cada);
+  o anfitrião ou o líder toca, enfileira ou recusa
 - Ferramentas do anfitrião: **senha da sala** opcional, **remover** e **banir** jogadores (o banimento é por IP enquanto a sala existir);
   qualquer jogador pode **denunciar** outro
 - Modificadores escolhidos pelo anfitrião: **Imortal** (continua a pista mesmo depois de errar) e **Velocidade**

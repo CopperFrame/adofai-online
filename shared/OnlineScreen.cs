@@ -79,6 +79,14 @@ public class OnlineScreen : MonoBehaviour
     private int banArmedId = -1;
     private float banArmedUntil;
     private Button filterButton;
+    private Button suggestLevelButton;
+    private Button suggestionsButton;
+    private GameObject suggestView;
+    private RectTransform suggestList;
+    private Text suggestHint;
+    private Button suggestAddButton;
+    private string suggestSignature;
+    private bool pickingForSuggest;
     private Button joinSoundButton;
     private Button ghostOpacityButton;
     private Button ghostNamesButton;
@@ -655,10 +663,15 @@ public class OnlineScreen : MonoBehaviour
         levelText.horizontalOverflow = HorizontalWrapMode.Wrap;
         levelText.verticalOverflow = VerticalWrapMode.Truncate;
         Place(levelText.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -44f), new Vector2(548f, 116f), new Vector2(0f, 1f));
-        chooseLevelButton = MakeButton(levelCard, "Escolher fase", 26, () => ShowLevelPicker(false));
-        Place((RectTransform)chooseLevelButton.transform, new Vector2(0f, 1f), new Vector2(16f, -166f), new Vector2(268f, 58f), new Vector2(0f, 1f));
-        queueAddButton = MakeButton(levelCard, "Adicionar à fila", 26, () => ShowLevelPicker(true));
-        Place((RectTransform)queueAddButton.transform, new Vector2(0f, 1f), new Vector2(296f, -166f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        // anfitrião e líder: Escolher / + Fila / Sugestões; os outros jogadores: Sugerir fase / Sugestões
+        chooseLevelButton = MakeButton(levelCard, "Escolher fase", 22, () => ShowLevelPicker(false));
+        Place((RectTransform)chooseLevelButton.transform, new Vector2(0f, 1f), new Vector2(16f, -166f), new Vector2(176f, 58f), new Vector2(0f, 1f));
+        queueAddButton = MakeButton(levelCard, "+ Fila", 22, () => ShowLevelPicker(true));
+        Place((RectTransform)queueAddButton.transform, new Vector2(0f, 1f), new Vector2(204f, -166f), new Vector2(176f, 58f), new Vector2(0f, 1f));
+        suggestLevelButton = MakeButton(levelCard, "Sugerir fase", 26, () => ShowLevelPicker(false, true));
+        Place((RectTransform)suggestLevelButton.transform, new Vector2(0f, 1f), new Vector2(16f, -166f), new Vector2(268f, 58f), new Vector2(0f, 1f));
+        suggestionsButton = MakeButton(levelCard, "Sugestões", 22, ShowSuggestions);
+        Place((RectTransform)suggestionsButton.transform, new Vector2(0f, 1f), new Vector2(392f, -166f), new Vector2(176f, 58f), new Vector2(0f, 1f));
         queueText = MakeText(levelCard, "", 24, Muted);
         queueText.horizontalOverflow = HorizontalWrapMode.Wrap;
         queueText.verticalOverflow = VerticalWrapMode.Truncate;
@@ -784,6 +797,10 @@ public class OnlineScreen : MonoBehaviour
         {
             levelPicker.SetActive(false);
         }
+        if (suggestView != null)
+        {
+            suggestView.SetActive(false);
+        }
         SetText(titleText, inRoom ? (client.roomName ?? "Sala") : "Online");
         if (inRoom)
         {
@@ -869,7 +886,11 @@ public class OnlineScreen : MonoBehaviour
         SetText(levelText, string.IsNullOrEmpty(title)
             ? "<color=#ffffff88>Nenhuma fase escolhida</color>"
             : title + (string.IsNullOrEmpty(artist) ? "" : $"  <color=#ffffff88>{artist}</color>") + "\n<size=38>" + status + "</size>");
-        chooseLevelButton.gameObject.SetActive(client.isHost);
+        RefreshLevelButtons();
+        if (!client.canPick && levelPicker != null && levelPicker.activeSelf && !pickingForSuggest)
+        {
+            levelPicker.SetActive(false); // perdeu a liderança com o seletor de fases aberto
+        }
         RefreshMods();
         RefreshQueue();
 
@@ -900,9 +921,170 @@ public class OnlineScreen : MonoBehaviour
         }
         readyButton.gameObject.SetActive(!client.inGame);
 
+        RefreshSuggestions();
+
         if (match.resultsUnseen && match.lastResults != null)
         {
             ShowResults(match.lastResults);
+        }
+    }
+
+    // ------------------------------------------------------------------ líder e sugestões de fases
+
+    private void RefreshLevelButtons()
+    {
+        bool pick = client.canPick;
+        chooseLevelButton.gameObject.SetActive(pick);
+        suggestLevelButton.gameObject.SetActive(!pick && !client.isSpectator);
+        var rt = (RectTransform)suggestionsButton.transform;
+        rt.anchoredPosition = pick ? new Vector2(392f, -166f) : new Vector2(296f, -166f);
+        rt.sizeDelta = pick ? new Vector2(176f, 58f) : new Vector2(268f, 58f);
+    }
+
+    private void ShowSuggestions()
+    {
+        if (client.state != OnlineClient.State.InRoom)
+        {
+            return;
+        }
+        if (suggestView == null)
+        {
+            BuildSuggestions();
+        }
+        suggestView.SetActive(true);
+        suggestView.transform.SetAsLastSibling();
+        suggestSignature = null;
+        RefreshSuggestions();
+    }
+
+    private void BuildSuggestions()
+    {
+        suggestView = new GameObject("Suggestions", typeof(RectTransform), typeof(Image), typeof(Button));
+        suggestView.transform.SetParent(panel.transform, false);
+        Stretch((RectTransform)suggestView.transform);
+        suggestView.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        suggestView.GetComponent<Button>().onClick.AddListener(() => suggestView.SetActive(false));
+
+        var box = PortUi.MakePanel(suggestView.transform, "SuggestBox", new Color(0.07f, 0.065f, 0.1f, 0.98f)).rectTransform;
+        box.anchorMin = box.anchorMax = new Vector2(0.5f, 0.5f);
+        box.sizeDelta = new Vector2(1200f, 760f);
+        box.gameObject.AddComponent<Button>().transition = Selectable.Transition.None; // toques na caixa não fecham
+
+        var title = MakeText(box, "Sugestões de fases", 44, Color.white);
+        Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -20f), new Vector2(800f, 80f));
+        suggestHint = MakeText(box, "", 26, Muted);
+        Place(suggestHint.rectTransform, new Vector2(0f, 1f), new Vector2(30f, -96f), new Vector2(1140f, 40f));
+        var close = MakeButton(box, "Fechar", 30, () => suggestView.SetActive(false));
+        Place((RectTransform)close.transform, new Vector2(1f, 1f), new Vector2(-30f, -22f), new Vector2(240f, 80f), new Vector2(1f, 1f));
+
+        suggestAddButton = MakeButton(box, "Sugerir uma fase", 32, () => ShowLevelPicker(false, true), light: true);
+        Place((RectTransform)suggestAddButton.transform, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(520f, 92f), new Vector2(0.5f, 0f));
+
+        var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(ScrollRect));
+        scrollGo.transform.SetParent(box, false);
+        var scrt = (RectTransform)scrollGo.transform;
+        Stretch(scrt);
+        scrt.offsetMin = new Vector2(30f, 140f);
+        scrt.offsetMax = new Vector2(-30f, -150f);
+        var scroll = scrollGo.GetComponent<ScrollRect>();
+        scroll.horizontal = false;
+        scroll.scrollSensitivity = 60f;
+        var viewport = NewRect("Viewport", scrollGo.transform);
+        Stretch(viewport);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        viewport.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.001f);
+        scroll.viewport = viewport;
+        suggestList = NewRect("Content", viewport);
+        suggestList.anchorMin = new Vector2(0f, 1f);
+        suggestList.anchorMax = new Vector2(1f, 1f);
+        suggestList.pivot = new Vector2(0.5f, 1f);
+        suggestList.sizeDelta = Vector2.zero;
+        var vlg = suggestList.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 10f;
+        vlg.childControlHeight = true;
+        vlg.childControlWidth = true;
+        vlg.childForceExpandHeight = false;
+        vlg.childForceExpandWidth = true;
+        suggestList.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        scroll.content = suggestList;
+        suggestView.SetActive(false);
+    }
+
+    // atualiza o rótulo do botão e, com a janela aberta, as linhas (só quando a lista ou as permissões mudaram)
+    private void RefreshSuggestions()
+    {
+        if (suggestionsButton != null)
+        {
+            int n = client.suggestions.Count;
+            SetText(suggestionsButton.GetComponentInChildren<Text>(), n > 0 ? "Sugestões (" + n + ")" : "Sugestões");
+        }
+        if (suggestView == null || !suggestView.activeSelf)
+        {
+            return;
+        }
+        string sig = string.Join(",", client.suggestions.Select(x => x.id.ToString()).ToArray()) + "|" + client.canPick + "|" + client.myId + "|" + client.isSpectator + "|" + client.inGame;
+        if (sig == suggestSignature)
+        {
+            return;
+        }
+        suggestSignature = sig;
+        ClearChildren(suggestList);
+        SetText(suggestHint, client.canPick
+            ? "Você pode tocar agora, colocar na fila ou recusar."
+            : "O anfitrião ou o líder das fases aceita ou recusa. Você pode retirar as suas.");
+        suggestAddButton.gameObject.SetActive(client.state == OnlineClient.State.InRoom && !client.isSpectator);
+        if (client.suggestions.Count == 0)
+        {
+            var empty = MakeText(suggestList, "Nenhuma sugestão ainda.", 32, Muted);
+            empty.alignment = TextAnchor.MiddleCenter;
+            empty.gameObject.AddComponent<LayoutElement>().preferredHeight = 120f;
+            return;
+        }
+        foreach (var sg in client.suggestions.ToList())
+        {
+            AddSuggestionRow(sg);
+        }
+    }
+
+    private void AddSuggestionRow(OnlineClient.Suggestion sg)
+    {
+        var row = MakePanel(suggestList, "Suggestion " + sg.id, Card).rectTransform;
+        row.gameObject.AddComponent<LayoutElement>().preferredHeight = 108f;
+        int id = sg.id;
+        bool mine = sg.by == client.myId;
+        string levelTitle = ChatFilter.Clean(StripTags(sg.level.Value<string>("title") ?? "?"));
+        string artist = ChatFilter.Clean(StripTags(sg.level.Value<string>("artist") ?? ""));
+        string who = ChatFilter.Clean(sg.byName);
+
+        // quantos botões: anfitrião/líder têm três; quem sugeriu (sem poder de escolha) tem um
+        float buttons = client.canPick ? 3 * 150f + 2 * 10f + 20f : mine ? 170f + 20f : 0f;
+        var t = MakeText(row, levelTitle, 34, Color.white);
+        t.horizontalOverflow = HorizontalWrapMode.Wrap;
+        t.verticalOverflow = VerticalWrapMode.Truncate;
+        Stretch(t.rectTransform);
+        t.rectTransform.offsetMin = new Vector2(24f, 54f);
+        t.rectTransform.offsetMax = new Vector2(-(buttons + 10f), -4f);
+        var sub = MakeText(row, "por " + who + (artist.Length > 0 ? "  ·  " + artist : ""), 26, new Color(1f, 1f, 1f, 0.55f));
+        sub.horizontalOverflow = HorizontalWrapMode.Wrap;
+        sub.verticalOverflow = VerticalWrapMode.Truncate;
+        Stretch(sub.rectTransform);
+        sub.rectTransform.offsetMin = new Vector2(24f, 4f);
+        sub.rectTransform.offsetMax = new Vector2(-(buttons + 10f), -56f);
+
+        if (client.canPick)
+        {
+            var reject = MakeButton(row, "Recusar", 24, () => client.RemoveSuggestion(id));
+            Place((RectTransform)reject.transform, new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(150f, 52f), new Vector2(1f, 0.5f));
+            var queue = MakeButton(row, "Enfileirar", 24, () => client.AcceptSuggestion(id, false));
+            Place((RectTransform)queue.transform, new Vector2(1f, 0.5f), new Vector2(-170f, 0f), new Vector2(150f, 52f), new Vector2(1f, 0.5f));
+            var play = MakeButton(row, "Tocar agora", 24, () => client.AcceptSuggestion(id, true), light: true);
+            Place((RectTransform)play.transform, new Vector2(1f, 0.5f), new Vector2(-330f, 0f), new Vector2(150f, 52f), new Vector2(1f, 0.5f));
+            play.interactable = !client.inGame;
+        }
+        else if (mine)
+        {
+            var withdraw = MakeButton(row, "Retirar", 26, () => client.RemoveSuggestion(id));
+            Place((RectTransform)withdraw.transform, new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(170f, 56f), new Vector2(1f, 0.5f));
         }
     }
 
@@ -1148,13 +1330,17 @@ public class OnlineScreen : MonoBehaviour
         {
             tags.Add("<color=#ffd166>Anfitrião</color>");
         }
+        else if (p.id == client.leaderId)
+        {
+            tags.Add("<color=#7fb2ff>Líder</color>");
+        }
         tags.Add(p.ready ? "<color=#8be28b>Pronto</color>" : "<color=#ffffff88>Esperando</color>");
         var tagText = MakeText(row, string.Join("   ", tags), 26, Color.white);
         tagText.alignment = TextAnchor.MiddleRight;
         tagText.rectTransform.anchorMin = Vector2.zero;
         tagText.rectTransform.anchorMax = Vector2.one;
         tagText.rectTransform.offsetMin = new Vector2(0f, 0f);
-        tagText.rectTransform.offsetMax = new Vector2(p.id == client.myId ? -30f : client.isHost ? -348f : -200f, 0f);
+        tagText.rectTransform.offsetMax = new Vector2(p.id == client.myId ? -30f : client.isHost ? (client.inGame ? -348f : -510f) : -200f, 0f);
 
         if (client.isHost && p.id != client.myId)
         {
@@ -1178,6 +1364,13 @@ public class OnlineScreen : MonoBehaviour
                 }
             });
             Place((RectTransform)ban.transform, new Vector2(1f, 0.5f), new Vector2(-180f, 0f), new Vector2(150f, 50f), new Vector2(1f, 0.5f));
+            if (!client.inGame)
+            {
+                // o líder das fases só escolhe e recusa fases: não remove, não bane, não muda modificadores nem começa a partida
+                bool isLeaderRow = p.id == client.leaderId;
+                var transfer = MakeButton(row, isLeaderRow ? "Tirar líder" : "Tornar líder", 22, () => client.SetLeader(isLeaderRow ? 0 : id));
+                Place((RectTransform)transfer.transform, new Vector2(1f, 0.5f), new Vector2(-340f, 0f), new Vector2(150f, 50f), new Vector2(1f, 0.5f));
+            }
         }
         else if (!client.isHost && p.id != client.myId)
         {
@@ -1255,6 +1448,11 @@ public class OnlineScreen : MonoBehaviour
 
     private void OnBack()
     {
+        if (suggestView != null && suggestView.activeSelf)
+        {
+            suggestView.SetActive(false);
+            return;
+        }
         if (optionsView != null && optionsView.activeSelf)
         {
             optionsView.SetActive(false);
@@ -1318,9 +1516,10 @@ public class OnlineScreen : MonoBehaviour
     private RectTransform levelPickerList;
     private InputField levelPickerSearch;
 
-    private void ShowLevelPicker(bool forQueue)
+    private void ShowLevelPicker(bool forQueue, bool forSuggest = false)
     {
-        if (!client.isHost)
+        // anfitrião e líder escolhem; qualquer jogador (que não esteja só assistindo) sugere
+        if (forSuggest ? (client.state != OnlineClient.State.InRoom || client.isSpectator) : !client.canPick)
         {
             return;
         }
@@ -1329,7 +1528,8 @@ public class OnlineScreen : MonoBehaviour
             BuildLevelPicker();
         }
         pickingForQueue = forQueue;
-        SetText(levelPickerTitle, forQueue ? "Adicionar à fila" : "Escolher fase");
+        pickingForSuggest = forSuggest;
+        SetText(levelPickerTitle, forSuggest ? "Sugerir uma fase" : forQueue ? "Adicionar à fila" : "Escolher fase");
         levelPicker.SetActive(true);
         levelPicker.transform.SetAsLastSibling();
         levelPickerSearch.text = "";
@@ -1490,7 +1690,7 @@ public class OnlineScreen : MonoBehaviour
             var row = PortUi.MakeButton(levelPickerList, "", 0, () =>
             {
                 levelPicker.SetActive(false);
-                StartCoroutine(PickLocalLevel(hash, title, artist, author, pickingForQueue));
+                StartCoroutine(PickLocalLevel(hash, title, artist, author, pickingForQueue, pickingForSuggest));
             });
             row.GetComponent<Image>().color = Card;
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 108f;
@@ -1609,7 +1809,7 @@ public class OnlineScreen : MonoBehaviour
     }
 
     // fase que o anfitrião já tem: procura o link no ADOFAI.gg/TUF para quem não tiver poder baixar
-    private IEnumerator PickLocalLevel(string hash, string title, string artist, string author, bool forQueue)
+    private IEnumerator PickLocalLevel(string hash, string title, string artist, string author, bool forQueue, bool forSuggest)
     {
         ShowToast("Procurando a fase no ADOFAI.gg e no TUF…");
         string url = null, key = null;
@@ -1648,16 +1848,21 @@ public class OnlineScreen : MonoBehaviour
         {
             ShowToast("Não deu para enviar a fase: só quem já tem poderá jogar.");
         }
-        if (client.isHost)
+        if (forSuggest ? client.state == OnlineClient.State.InRoom : client.canPick)
         {
-            ApplyPickedLevel(level, forQueue);
+            ApplyPickedLevel(level, forQueue, forSuggest);
         }
     }
 
     // fase escolhida pelo anfitrião: vira a fase da sala ou entra no fim da fila
-    private void ApplyPickedLevel(Newtonsoft.Json.Linq.JObject level, bool forQueue)
+    private void ApplyPickedLevel(Newtonsoft.Json.Linq.JObject level, bool forQueue, bool forSuggest = false)
     {
-        if (!forQueue)
+        if (forSuggest)
+        {
+            client.Suggest(level);
+            ShowToast("Fase sugerida.");
+        }
+        else if (!forQueue)
         {
             client.SetLevel(level);
         }
@@ -1673,7 +1878,7 @@ public class OnlineScreen : MonoBehaviour
 
     private void RefreshQueue()
     {
-        bool host = client.isHost;
+        bool host = client.canPick;
         queueAddButton.gameObject.SetActive(host);
         queueClearButton.gameObject.SetActive(host && client.queue.Count > 0);
         var names = new List<string>();
@@ -1900,6 +2105,10 @@ public class OnlineScreen : MonoBehaviour
         {
             return optionsView.transform;
         }
+        if (suggestView != null && suggestView.activeSelf)
+        {
+            return suggestView.transform;
+        }
         if (levelPicker != null && levelPicker.activeSelf)
         {
             return levelPicker.transform;
@@ -1920,7 +2129,7 @@ public class OnlineScreen : MonoBehaviour
             {
                 continue;
             }
-            if (s.gameObject == optionsView || s.gameObject == levelPicker)
+            if (s.gameObject == optionsView || s.gameObject == levelPicker || s.gameObject == suggestView)
             {
                 continue; // o fundo escuro que fecha a janela ao tocar não é um item
             }
@@ -2157,11 +2366,12 @@ public class OnlineScreen : MonoBehaviour
     private void PickCommunityLevel()
     {
         bool forQueue = pickingForQueue;
+        bool forSuggest = pickingForSuggest;
         levelPicker.SetActive(false);
         SetOpen(false);
         LevelBrowser.PickForOnline((url, key, title, artist, author) =>
         {
-            if (url != null && client.isHost)
+            if (url != null && (forSuggest ? client.state == OnlineClient.State.InRoom : client.canPick))
             {
                 ApplyPickedLevel(new Newtonsoft.Json.Linq.JObject
                 {
@@ -2171,7 +2381,7 @@ public class OnlineScreen : MonoBehaviour
                     ["title"] = title,
                     ["artist"] = artist ?? "",
                     ["author"] = author ?? "", // para quem já tem a fase achar a própria cópia e não baixar de novo
-                }, forQueue);
+                }, forQueue, forSuggest);
             }
             Open();
         });
