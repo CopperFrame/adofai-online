@@ -3,6 +3,12 @@
 Each version has its own page under [Releases](https://github.com/CopperFrame/adofai-online/releases) with the install files.
 Cada versão tem a própria página em [Releases](https://github.com/CopperFrame/adofai-online/releases), com os arquivos de instalação.
 
+## 0.2.9
+- Public player numbers in the lobby (`/stats` on every server): players online, rooms with players, active today. / Números públicos de jogadores no lobby.
+- Sound when someone joins your room (can be turned off). / Som quando alguém entra na sala.
+- Up to 8 players per room; play-again button in the results; ghost opacity and names options; Options screen in two columns. / Até 8 jogadores, botão Jogar de novo, opções de fantasma.
+- CONTRIBUTING, issue and pull request templates. / Arquivos da comunidade.
+
 ## 0.2.8
 - Fixed the empty level list after a match (the mod now reads local and Workshop levels even when the game returns to a featured category). / Corrigida a lista de fases vazia depois da partida.
 - Downloads that receive no data for 30 s now fail with a clear message instead of staying at 0%. / Downloads parados por 30 s agora falham com mensagem clara.

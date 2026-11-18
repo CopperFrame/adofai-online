@@ -11,13 +11,16 @@ namespace AdofaiOnlineMod
     [BepInPlugin("adofai.port.online", "ADOFAI Online", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Version = "0.2.8";
+        public const string Version = "0.2.9";
         internal static BepInEx.Logging.ManualLogSource Log;
 
         /// <summary>Partes do mod que não conseguiram se ligar ao jogo (depois de uma atualização dele, por exemplo).</summary>
         internal static readonly List<string> PatchProblems = new List<string>();
         internal static BepInEx.Configuration.ConfigEntry<bool> CheckForUpdates;
         internal static BepInEx.Configuration.ConfigEntry<bool> ChatFilterEntry;
+        internal static BepInEx.Configuration.ConfigEntry<bool> JoinSoundEntry;
+        internal static BepInEx.Configuration.ConfigEntry<int> GhostOpacityEntry;
+        internal static BepInEx.Configuration.ConfigEntry<bool> GhostNamesEntry;
 
         private void Awake()
         {
@@ -59,6 +62,13 @@ namespace AdofaiOnlineMod
                 Log.LogWarning("filter.txt ignorado: " + e.Message);
             }
 
+            JoinSoundEntry = Config.Bind("General", "JoinSound", true,
+                "Play a short sound when another player joins your room.");
+
+            GhostOpacityEntry = Config.Bind("General", "GhostOpacity", 80,
+                "Opacity of the other players' ghosts in percent: 100, 80, 50, 25 or 0 (hidden).");
+            GhostNamesEntry = Config.Bind("General", "GhostNames", true, "Show each player's name above their ghost.");
+
             ServerConfig.Primary = (primary.Value ?? "").Trim();
             ServerConfig.Fallback = (fallback.Value ?? "").Trim();
             if (ServerConfig.Primary.Length == 0 && ServerConfig.Fallback.Length == 0)
@@ -66,7 +76,7 @@ namespace AdofaiOnlineMod
                 Log.LogWarning("No server configured: set one in the Online > Options screen or in BepInEx/config/adofai.port.online.cfg");
             }
 
-            OnlineOptions.Store = new ConfigStore(language, primary, fallback, CheckForUpdates, ChatFilterEntry);
+            OnlineOptions.Store = new ConfigStore(language, primary, fallback, CheckForUpdates, ChatFilterEntry, JoinSoundEntry, GhostOpacityEntry, GhostNamesEntry);
             OnlineOptions.HasFallbackServer = true;
             OnlineOptions.HasUpdateCheck = true;
             OnlineOptions.DefaultLanguage = "auto";
@@ -133,13 +143,18 @@ namespace AdofaiOnlineMod
     internal sealed class ConfigStore : OnlineOptions.IStore
     {
         private readonly BepInEx.Configuration.ConfigEntry<string> language, primary, fallback;
-        private readonly BepInEx.Configuration.ConfigEntry<bool> updates, filter;
+        private readonly BepInEx.Configuration.ConfigEntry<bool> updates, filter, joinSound, ghostNames;
+        private readonly BepInEx.Configuration.ConfigEntry<int> ghostOpacity;
 
         public ConfigStore(BepInEx.Configuration.ConfigEntry<string> language, BepInEx.Configuration.ConfigEntry<string> primary,
             BepInEx.Configuration.ConfigEntry<string> fallback, BepInEx.Configuration.ConfigEntry<bool> updates,
-            BepInEx.Configuration.ConfigEntry<bool> filter)
+            BepInEx.Configuration.ConfigEntry<bool> filter, BepInEx.Configuration.ConfigEntry<bool> joinSound,
+            BepInEx.Configuration.ConfigEntry<int> ghostOpacity, BepInEx.Configuration.ConfigEntry<bool> ghostNames)
         {
+            this.ghostOpacity = ghostOpacity;
+            this.ghostNames = ghostNames;
             this.filter = filter;
+            this.joinSound = joinSound;
             this.language = language;
             this.primary = primary;
             this.fallback = fallback;
@@ -160,6 +175,12 @@ namespace AdofaiOnlineMod
                     return updates.Value ? "true" : "false";
                 case "filter":
                     return filter.Value ? "true" : "false";
+                case "joinsound":
+                    return joinSound.Value ? "true" : "false";
+                case "ghostalpha":
+                    return ghostOpacity.Value.ToString();
+                case "ghostnames":
+                    return ghostNames.Value ? "true" : "false";
                 default:
                     return defaultValue;
             }
@@ -185,6 +206,19 @@ namespace AdofaiOnlineMod
                     break;
                 case "filter":
                     filter.Value = value == "true";
+                    break;
+                case "joinsound":
+                    joinSound.Value = value == "true";
+                    break;
+                case "ghostalpha":
+                    int alpha;
+                    if (int.TryParse(value, out alpha))
+                    {
+                        ghostOpacity.Value = alpha;
+                    }
+                    break;
+                case "ghostnames":
+                    ghostNames.Value = value == "true";
                     break;
             }
         }

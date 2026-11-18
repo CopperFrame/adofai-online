@@ -18,7 +18,7 @@ import { pipeline } from "node:stream/promises";
 import { WebSocketServer } from "ws";
 
 const PROTOCOL_VERSION = 1;
-const MAX_PLAYERS = 4;
+const MAX_PLAYERS = 8;
 const MAX_SPECTATORS = 4;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O e 1/I
 const EMPTY_ROOM_TTL_MS = 60_000;
@@ -108,6 +108,37 @@ function cleanText(value, max) {
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim()
     .slice(0, max);
+}
+
+// ---- estatísticas públicas (GET /stats): só números; ninguém é identificado
+// "ativos hoje" = jogadores distintos (IP + sal do dia e do processo, só o hash curto fica em memória) que abriram o
+// online ou entraram numa sala desde a meia-noite UTC. Zera quando o servidor reinicia.
+const statsSalt = crypto.randomBytes(16).toString("hex");
+const statsStartedAt = new Date().toISOString();
+let statsDay = new Date().toISOString().slice(0, 10);
+let seenToday = new Set();
+let seenYesterday = 0;
+
+function markSeen(ip) {
+  if (!ip) return;
+  const day = new Date().toISOString().slice(0, 10);
+  if (day !== statsDay) {
+    seenYesterday = seenToday.size;
+    seenToday = new Set();
+    statsDay = day;
+  }
+  if (seenToday.size < 50_000) seenToday.add(sha256hex(statsSalt + day + ip).slice(0, 16));
+}
+
+function statsSnapshot() {
+  let online = 0;
+  let active = 0;
+  for (const r of rooms.values()) {
+    online += r.sockets.size;
+    if (r.sockets.size > 0) active++;
+  }
+  markSeen(""); // vira o dia, se for o caso
+  return { online, rooms: active, today: seenToday.size, yesterday: seenYesterday, since: statsStartedAt };
 }
 
 function sha256hex(text) {
@@ -485,8 +516,13 @@ const server = http.createServer(async (req, res) => {
     return handleFile(req, res, parts[1]);
   }
 
+  if (parts[0] === "stats" && parts.length === 1 && req.method === "GET") {
+    return json(res, 200, statsSnapshot());
+  }
+
   if (parts[0] === "rooms" && parts.length === 1) {
     if (req.method === "GET") {
+      markSeen(clientIp(req));
       const list = [...rooms.values()]
         .filter((r) => r.listed())
         .map((r) => r.listing())
@@ -528,6 +564,7 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
   const ip = clientIp(req);
+  markSeen(ip);
   if ((socketsPerIp.get(ip) ?? 0) >= MAX_SOCKETS_PER_IP) {
     socket.write("HTTP/1.1 429 Too Many Requests\r\n\r\n");
     socket.destroy();

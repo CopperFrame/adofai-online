@@ -1,0 +1,52 @@
+name: Bug report / Relatar um problema
+description: Something does not work (the Online buttons are missing, a room fails, a crash...)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the **Online buttons do not show up**, start the game once, open the custom level selector,
+        close the game and run `Diagnose-ADOFAI-Online.bat` (it writes `ADOFAI-Online-diagnostic.txt` on your Desktop, with no
+        personal names). Attach that file below.
+        Se os **botões do Online não aparecem**, abra o jogo uma vez, entre no seletor de fases personalizadas, feche e rode o
+        `Diagnose-ADOFAI-Online.bat`. Anexe o arquivo gerado.
+  - type: input
+    id: mod-version
+    attributes:
+      label: Mod version / Versão do mod
+      description: Shown in the update notice, in the release name or in `BepInEx/LogOutput.log` ("Loading [ADOFAI Online x.y.z]").
+      placeholder: "0.2.8"
+    validations:
+      required: true
+  - type: input
+    id: game-version
+    attributes:
+      label: Game version (Steam build) / Versão do jogo
+      description: Steam > A Dance of Fire and Ice > Properties > Updates, or the build ID in `steamapps/appmanifest_977950.acf`.
+      placeholder: "26397875"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / O que aconteceu?
+      description: What you did, what you expected and what you got. If it is about a level, give its name or link.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen? / Onde acontece?
+      multiple: true
+      options:
+        - Install / the Online buttons are missing
+        - Creating or joining a room
+        - Level download or level picker
+        - During a match (ghosts, timing, results)
+        - Chat, passwords, bans or reports
+        - Options screen
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Registros
+      description: Paste the end of `BepInEx/LogOutput.log` or attach `ADOFAI-Online-diagnostic.txt`.
+      render: text

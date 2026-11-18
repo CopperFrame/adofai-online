@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Install help / Ajuda para instalar
+    url: https://github.com/CopperFrame/adofai-online/blob/main/mod/README.md#the-online-buttons-do-not-show-up
+    about: Steps to try before opening an issue (the installer, the diagnostic file and the usual causes).

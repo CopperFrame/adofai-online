@@ -79,6 +79,10 @@ public class OnlineScreen : MonoBehaviour
     private int banArmedId = -1;
     private float banArmedUntil;
     private Button filterButton;
+    private Button joinSoundButton;
+    private Button ghostOpacityButton;
+    private Button ghostNamesButton;
+    private Text statsText;
     private int reportArmedId = -1;
     private float reportArmedUntil;
     private Button queueAddButton;
@@ -283,6 +287,19 @@ public class OnlineScreen : MonoBehaviour
         StartCoroutine(RefreshRooms(silent: true));
     }
 
+    private IEnumerator RefreshStats()
+    {
+        OnlineClient.ServerStats stats = null;
+        yield return client.FetchStats(s => stats = s);
+        if (statsText == null)
+        {
+            yield break;
+        }
+        SetText(statsText, stats == null
+            ? ""
+            : "Jogadores online: " + stats.online + "  ·  Salas com jogadores: " + stats.rooms + "  ·  Ativos hoje: " + stats.today);
+    }
+
     private IEnumerator RefreshRooms(bool silent = false)
     {
         if (busy)
@@ -291,6 +308,7 @@ public class OnlineScreen : MonoBehaviour
         }
         busy = true;
         nextAutoRefresh = Time.unscaledTime + AutoRefreshSeconds;
+        StartCoroutine(RefreshStats());
         if (!silent)
         {
             SetListStatus("Procurando salas…");
@@ -558,6 +576,10 @@ public class OnlineScreen : MonoBehaviour
         var header = MakeText(right, "Salas abertas", 40, Color.white);
         Place(header.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0f), new Vector2(500f, 80f));
 
+        // números públicos do servidor: quem está online agora e quantos jogaram hoje
+        statsText = MakeText(right, "", 26, Muted);
+        Place(statsText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, -84f), new Vector2(1100f, 40f));
+
         var refresh = MakeButton(right, "Atualizar", 32, () => StartCoroutine(RefreshRooms()));
         Place((RectTransform)refresh.transform, new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(230f, 76f));
         allRegionsButton = MakeButton(right, "Todas as regiões", 32, () =>
@@ -572,7 +594,7 @@ public class OnlineScreen : MonoBehaviour
         scrollGo.transform.SetParent(right, false);
         var scrt = (RectTransform)scrollGo.transform;
         Stretch(scrt);
-        scrt.offsetMax = new Vector2(0f, -96f);
+        scrt.offsetMax = new Vector2(0f, -134f);
         var scroll = scrollGo.GetComponent<ScrollRect>();
         scroll.horizontal = false;
         scroll.scrollSensitivity = 60f;
@@ -866,7 +888,7 @@ public class OnlineScreen : MonoBehaviour
         bool allReady = client.players.Count > 0 && client.players.All(p => p.ready);
         startButton.gameObject.SetActive(client.isHost);
         // o chat começa logo abaixo do último jogador e vai até o fim da coluna
-        float listBottom = 96f + client.players.Count * (PlayerRowHeight + PlayerRowSpacing) + 12f;
+        float listBottom = 96f + client.players.Count * (RowHeight + PlayerRowSpacing) + 12f;
         chatPanel.offsetMin = new Vector2(chatPanel.offsetMin.x, 0f);
         chatPanel.offsetMax = new Vector2(chatPanel.offsetMax.x, -listBottom);
         startButton.interactable = client.inGame || (allReady && level != null);
@@ -888,6 +910,9 @@ public class OnlineScreen : MonoBehaviour
 
     private RectTransform chatPanel;
     private const float PlayerRowHeight = 60f;
+
+    // com mais de 5 jogadores as linhas ficam mais baixas, para a lista e o chat caberem na coluna
+    private float RowHeight => client.players.Count > 5 ? 50f : PlayerRowHeight;
     private const float PlayerRowSpacing = 6f;
     private RectTransform chatContent;
     private ScrollRect chatScroll;
@@ -1039,7 +1064,10 @@ public class OnlineScreen : MonoBehaviour
 
         var box = MakePanel(resultsPanel.transform, "Box", new Color(0.09f, 0.08f, 0.13f, 1f)).rectTransform;
         box.anchorMin = box.anchorMax = new Vector2(0.5f, 0.5f);
-        box.sizeDelta = new Vector2(1250f, 160f + results.Count * 120f + 120f);
+        // com muitos jogadores as linhas ficam mais baixas e as letras menores, para o placar caber na tela
+        float step = Mathf.Min(120f, 560f / Mathf.Max(1, results.Count));
+        float fs = step < 100f ? 0.7f : 1f;
+        box.sizeDelta = new Vector2(1250f, 160f + results.Count * step + 120f);
 
         var title = MakeText(box, "Resultado da partida", 52, Color.white);
         title.alignment = TextAnchor.MiddleCenter;
@@ -1062,18 +1090,18 @@ public class OnlineScreen : MonoBehaviour
             line.anchorMin = new Vector2(0f, 1f);
             line.anchorMax = new Vector2(1f, 1f);
             line.pivot = new Vector2(0.5f, 1f);
-            line.offsetMin = new Vector2(30f, y - 105f);
+            line.offsetMin = new Vector2(30f, y - (step - 15f));
             line.offsetMax = new Vector2(-30f, y);
-            y -= 120f;
+            y -= step;
 
             string medal = pos == 1 ? "#ffd166" : pos == 2 ? "#d9dee6" : pos == 3 ? "#e3a06b" : "#ffffff88";
-            var place = MakeText(line, $"<color={medal}>{pos}º</color>", 48, Color.white);
+            var place = MakeText(line, $"<color={medal}>{pos}º</color>", Mathf.RoundToInt(48 * fs), Color.white);
             place.alignment = TextAnchor.MiddleCenter;
             Place(place.rectTransform, new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(110f, 100f), new Vector2(0f, 0.5f));
 
             string name = row.Value<string>("name") + (id == client.myId ? "  <color=#ffffff88>(você)</color>" : "") +
                           (left ? "  <color=#ffffff66>(saiu)</color>" : "");
-            var nameText = MakeText(line, name, 40, Color.white);
+            var nameText = MakeText(line, name, Mathf.RoundToInt(40 * fs), Color.white);
             nameText.rectTransform.anchorMin = new Vector2(0f, 0f);
             nameText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
             nameText.rectTransform.offsetMin = new Vector2(140f, 0f);
@@ -1083,7 +1111,7 @@ public class OnlineScreen : MonoBehaviour
             string detail = finished
                 ? $"<color=#8be28b>Terminou</color>   {(acc >= 0f ? $"{acc * 100f:0.00}%" : "")}   ·   {quedas}"
                 : $"<color=#ffffff88>{(quit ? "Desistiu" : "Não terminou")}</color>   {progress * 100f:0}% da fase   ·   {quedas}";
-            var detailText = MakeText(line, detail, 32, Color.white);
+            var detailText = MakeText(line, detail, Mathf.RoundToInt(32 * fs), Color.white);
             detailText.alignment = TextAnchor.MiddleRight;
             detailText.rectTransform.anchorMin = new Vector2(0.4f, 0f);
             detailText.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -1091,14 +1119,22 @@ public class OnlineScreen : MonoBehaviour
             detailText.rectTransform.offsetMax = new Vector2(-30f, 0f);
         }
 
-        var close = MakeButton(box, "Fechar", 36, () => Destroy(resultsPanel), light: true);
-        Place((RectTransform)close.transform, new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(300f, 86f));
+        var close = MakeButton(box, "Fechar", 36, () => Destroy(resultsPanel));
+        Place((RectTransform)close.transform, new Vector2(0.5f, 0f), new Vector2(-190f, 24f), new Vector2(300f, 86f));
+        // "Jogar de novo": marca você como pronto para a próxima partida (a fase da sala continua escolhida ou já é a próxima da fila)
+        var again = MakeButton(box, "Jogar de novo", 34, () =>
+        {
+            client.SetReady(true);
+            Destroy(resultsPanel);
+        }, light: true);
+        Place((RectTransform)again.transform, new Vector2(0.5f, 0f), new Vector2(190f, 24f), new Vector2(340f, 86f));
+        again.interactable = client.state == OnlineClient.State.InRoom && OnlineMatch.Instance.levelState == OnlineMatch.LevelState.Ready;
     }
 
     private void AddPlayerRow(OnlineClient.Player p)
     {
         var row = MakePanel(playerList, "Player " + p.id, Card).rectTransform;
-        row.gameObject.AddComponent<LayoutElement>().preferredHeight = PlayerRowHeight;
+        row.gameObject.AddComponent<LayoutElement>().preferredHeight = RowHeight;
 
         string name = ChatFilter.Clean(p.name) + (p.id == client.myId ? "  <color=#ffffff88>(você)</color>" : "");
         var nameText = MakeText(row, name, 32, Color.white);
@@ -1667,36 +1703,51 @@ public class OnlineScreen : MonoBehaviour
         var title = MakeText(box, "Opções", 46, Color.white);
         Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(40f, -22f), new Vector2(600f, 80f));
 
-        float y = -100f;
-        Label(box, "Idioma", ref y, 34f);
-        languageButton = MakeButton(box, "…", 32, CycleLanguage); // o texto vem de RefreshOptionsLabels
-        Row((RectTransform)languageButton.transform, ref y, 64f);
-
+        float y = -92f;
         if (OnlineOptions.CanEditServers)
         {
-            Label(box, "Servidor principal", ref y, 34f);
+            Label(box, "Servidor principal", ref y, 30f);
             primaryField = MakeInputField(box, "https://…", 30f, 30);
-            Row((RectTransform)primaryField.transform, ref y, 60f);
+            Row((RectTransform)primaryField.transform, ref y, 56f);
             if (OnlineOptions.HasFallbackServer)
             {
-                Label(box, "Servidor de reserva", ref y, 34f);
+                Label(box, "Servidor de reserva", ref y, 30f);
                 fallbackField = MakeInputField(box, "https://…", 30f, 30);
-                Row((RectTransform)fallbackField.transform, ref y, 60f);
+                Row((RectTransform)fallbackField.transform, ref y, 56f);
             }
             var hint = MakeText(box, "Todos da sala precisam usar o mesmo servidor.", 24, Muted);
-            Row(hint.rectTransform, ref y, 32f);
-            resetServersButton = MakeButton(box, "Restaurar servidores padrão", 26, ResetServersClicked);
-            Row((RectTransform)resetServersButton.transform, ref y, 64f);
+            Row(hint.rectTransform, ref y, 30f);
         }
+
+        // o resto das opções são botões, em duas colunas
+        var cells = new List<Button>();
+        languageButton = MakeButton(box, "…", 26, CycleLanguage); // o texto vem de RefreshOptionsLabels
+        cells.Add(languageButton);
         if (OnlineOptions.HasUpdateCheck)
         {
             updatesButton = MakeButton(box, "…", 26, ToggleUpdates);
-            Row((RectTransform)updatesButton.transform, ref y, 64f);
+            cells.Add(updatesButton);
         }
         filterButton = MakeButton(box, "…", 26, ToggleFilter);
-        Row((RectTransform)filterButton.transform, ref y, 64f);
+        cells.Add(filterButton);
+        joinSoundButton = MakeButton(box, "…", 26, ToggleJoinSound);
+        cells.Add(joinSoundButton);
+        ghostOpacityButton = MakeButton(box, "…", 26, CycleGhostOpacity);
+        cells.Add(ghostOpacityButton);
+        ghostNamesButton = MakeButton(box, "…", 26, ToggleGhostNames);
+        cells.Add(ghostNamesButton);
+        if (OnlineOptions.CanEditServers)
+        {
+            resetServersButton = MakeButton(box, "Servidores padrão", 26, ResetServersClicked);
+            cells.Add(resetServersButton);
+        }
+        for (int i = 0; i < cells.Count; i++)
+        {
+            Place((RectTransform)cells[i].transform, new Vector2(0f, 1f), new Vector2(44f + 80f + (i % 2) * 512f, y - (i / 2) * 72f), new Vector2(340f, 60f), new Vector2(0f, 1f)); // 340x60 = proporção da placa de pedra: o texto fica no meio dela
+        }
+        y -= ((cells.Count + 1) / 2) * 72f;
 
-        box.sizeDelta = new Vector2(1100f, -y + 128f);
+        box.sizeDelta = new Vector2(1100f, -y + 120f);
         var save = MakeButton(box, "Salvar e fechar", 34, SaveOptions, light: true);
         Place((RectTransform)save.transform, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(420f, 88f), new Vector2(0.5f, 0f));
         optionsView.SetActive(false);
@@ -1725,20 +1776,33 @@ public class OnlineScreen : MonoBehaviour
     private static string LanguageName(string code)
     {
         // cada idioma aparece no próprio nome (não passam pela tradução)
-        return code == "en" ? "English" : code == "pt" ? "Português" : code == "ko" ? "한국어" : code == "auto" ? "Automático (idioma do jogo)" : Loc.PackName(code);
+        return code == "en" ? "English" : code == "pt" ? "Português" : code == "ko" ? "한국어" : code == "auto" ? "Automático" : Loc.PackName(code);
     }
 
     private void RefreshOptionsLabels()
     {
-        SetText(languageButton.GetComponentInChildren<Text>(), LanguageName(OnlineOptions.Language));
+        SetText(languageButton.GetComponentInChildren<Text>(), "Idioma: " + LanguageName(OnlineOptions.Language));
+        if (ghostOpacityButton != null)
+        {
+            int p = OnlineOptions.GhostOpacity;
+            SetText(ghostOpacityButton.GetComponentInChildren<Text>(), "Fantasmas: " + (p == 0 ? "ocultos" : p + "%"));
+        }
+        if (ghostNamesButton != null)
+        {
+            SetText(ghostNamesButton.GetComponentInChildren<Text>(), "Nomes dos fantasmas: " + (OnlineOptions.GhostNames ? "Sim" : "Não"));
+        }
         if (filterButton != null)
         {
-            SetText(filterButton.GetComponentInChildren<Text>(), "Filtro de palavrões no chat: " + (OnlineOptions.ChatFilter ? "Sim" : "Não"));
+            SetText(filterButton.GetComponentInChildren<Text>(), "Filtro do chat: " + (OnlineOptions.ChatFilter ? "Sim" : "Não"));
+        }
+        if (joinSoundButton != null)
+        {
+            SetText(joinSoundButton.GetComponentInChildren<Text>(), "Som ao entrar: " + (OnlineOptions.JoinSound ? "Sim" : "Não"));
         }
         if (updatesButton != null)
         {
             SetText(updatesButton.GetComponentInChildren<Text>(),
-                "Verificar atualizações do mod: " + (OnlineOptions.CheckForUpdates ? "Sim" : "Não"));
+                "Atualizações do mod: " + (OnlineOptions.CheckForUpdates ? "Sim" : "Não"));
         }
     }
 
@@ -1746,6 +1810,30 @@ public class OnlineScreen : MonoBehaviour
     {
         int i = Array.IndexOf(OnlineOptions.Languages, OnlineOptions.Language);
         OnlineOptions.Language = OnlineOptions.Languages[(i + 1) % OnlineOptions.Languages.Length];
+        RefreshOptionsLabels();
+    }
+
+    private void CycleGhostOpacity()
+    {
+        int[] steps = OnlineOptions.GhostOpacitySteps;
+        int i = Array.IndexOf(steps, OnlineOptions.GhostOpacity);
+        OnlineOptions.GhostOpacity = steps[(i + 1) % steps.Length];
+        RefreshOptionsLabels();
+    }
+
+    private void ToggleGhostNames()
+    {
+        OnlineOptions.GhostNames = !OnlineOptions.GhostNames;
+        RefreshOptionsLabels();
+    }
+
+    private void ToggleJoinSound()
+    {
+        OnlineOptions.JoinSound = !OnlineOptions.JoinSound;
+        if (OnlineOptions.JoinSound)
+        {
+            OnlineSound.Ding(); // mostra como é o som
+        }
         RefreshOptionsLabels();
     }
 

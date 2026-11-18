@@ -392,11 +392,13 @@ public class OnlineGhosts : MonoBehaviour
             g.placed = true;
             g.focus = center;
             g.racing = !dead && !run.finished;
-            SetAlpha(still, dead ? 0.25f : 0.8f);
-            SetAlpha(moving, orbiting ? 0.8f : 0f);
+            float opacity = OnlineOptions.GhostOpacity / 80f; // 80% é o aspecto de sempre
+            SetAlpha(still, Mathf.Clamp01((dead ? 0.25f : 0.8f) * opacity));
+            SetAlpha(moving, Mathf.Clamp01((orbiting ? 0.8f : 0f) * opacity));
             float jump = controller.tileSize * 3f;
-            UpdateTail(g.tailA, g.planetA.transform.position, ref g.lastA, orbiting, jump);
-            UpdateTail(g.tailB, g.planetB.transform.position, ref g.lastB, orbiting, jump);
+            bool tails = orbiting && OnlineOptions.GhostOpacity > 0;
+            UpdateTail(g.tailA, g.planetA.transform.position, ref g.lastA, tails, jump);
+            UpdateTail(g.tailB, g.planetB.transform.position, ref g.lastB, tails, jump);
 
             bool onScreen = false;
             if (cam != null)
@@ -405,7 +407,7 @@ public class OnlineGhosts : MonoBehaviour
                 onScreen = screen.z > 0f;
                 g.label.transform.position = screen;
             }
-            g.label.enabled = onScreen;
+            g.label.enabled = onScreen && OnlineOptions.GhostNames && OnlineOptions.GhostOpacity > 0;
             string text = g.name + (dead ? "  (caiu)" : run.finished ? "  (terminou)" : "");
             if (g.label.text != Loc.T(text))
             {

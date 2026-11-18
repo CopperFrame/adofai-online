@@ -13,6 +13,8 @@ track as ghosts, and anyone who joins late (or finishes early) can watch live.
 - Rooms with up to 4 players: public (listed by region) or private (join with a code)
 - Race mode: other players appear as ghosts with their name above them
 - Spectator mode: join a match in progress or keep watching after you finish
+- **Players online** shown in the lobby (who is in a room now, rooms with players and players active today), and an optional
+  **sound when someone joins your room** (Options)
 - Room chat, with a message rate limit and an optional swear-word filter (on by default; Options screen)
 - Room tools for the host: optional **room password**, **remove** and **ban** players (ban is by IP while the room exists);
   every player can **report** another one
@@ -97,6 +99,10 @@ If a game update breaks part of the mod, the same notice tells you which part an
 - **Reports** (button next to a player's name): the server writes a line in its own log with the room code, the two
   names and the reported player's last chat messages (up to 8, kept in memory only until then), and tells the host that
   a player was reported. Nothing else is stored, and no one is banned automatically.
+- **Public numbers (`/stats`):** each server answers `GET /stats` with only counts: players in rooms now, rooms with players and
+  players **active today** (distinct people who opened the Online screen or joined a room since midnight UTC; the server keeps
+  only a short hash of IP + day in memory, never the IP, and the count restarts if the server restarts). The lobby shows these
+  numbers; anyone can read them in a browser.
 - The **swear-word filter** runs on your side, only on what you see. Add your own words in
   `BepInEx/config/AdofaiOnline-lang/filter.txt` (one per line, `#` for comments).
 
@@ -157,6 +163,8 @@ contém código nem arquivos do jogo.
 - Salas de até 4 jogadores: públicas (listadas por região) ou privadas (entra-se com um código)
 - Modo corrida: os outros jogadores aparecem como fantasmas, com o nome acima
 - Modo espectador: entre numa partida em andamento ou continue assistindo depois de terminar
+- **Jogadores online** no lobby (quem está numa sala agora, salas com jogadores e jogadores ativos hoje) e um **som opcional
+  quando alguém entra na sua sala** (Opções)
 - Chat da sala, com limite de mensagens por segundo e filtro opcional de palavrões (ligado por padrão; tela de Opções)
 - Ferramentas do anfitrião: **senha da sala** opcional, **remover** e **banir** jogadores (o banimento é por IP enquanto a sala existir);
   qualquer jogador pode **denunciar** outro
@@ -226,6 +234,10 @@ mods; ao relatar um problema, informe a versão do jogo e anexe o `BepInEx/LogOu
 - **Denúncias** (botão ao lado do nome do jogador): o servidor escreve uma linha no próprio registro com o código da sala,
   os dois nomes e as últimas mensagens de chat do denunciado (até 8, guardadas só na memória até então) e avisa o anfitrião
   de que alguém foi denunciado. Nada mais é guardado e ninguém é banido automaticamente.
+- **Números públicos (`/stats`):** cada servidor responde `GET /stats` só com contagens: jogadores em salas agora, salas com
+  jogadores e jogadores **ativos hoje** (pessoas distintas que abriram a tela Online ou entraram numa sala desde a meia-noite UTC;
+  o servidor guarda em memória só um hash curto de IP + dia, nunca o IP, e a contagem recomeça se o servidor reiniciar). O lobby
+  mostra esses números e qualquer pessoa pode lê-los no navegador.
 - O **filtro de palavrões** roda no seu lado, só no que você vê. Acrescente palavras em
   `BepInEx/config/AdofaiOnline-lang/filter.txt` (uma por linha, `#` para comentários).
 

@@ -1,0 +1,28 @@
+name: Idea or request / Ideia ou pedido
+description: Suggest something for the mod
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like? / O que você gostaria?
+      description: Describe the idea and the situation where it would help. A sketch or an example is welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Área
+      options:
+        - Rooms and matches
+        - Modifiers
+        - Ghosts and spectating
+        - Chat and moderation
+        - Level picker and downloads
+        - Translations (a new language)
+        - Servers
+        - Other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you thought of / Alternativas (opcional)

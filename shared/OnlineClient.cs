@@ -21,7 +21,7 @@ using UnityEngine.Networking;
 public class OnlineClient : MonoBehaviour
 {
     public const int Protocol = 1;
-    public const int MaxPlayers = 4;
+    public const int MaxPlayers = 8;
 
     // Endereço do servidor publicado (wrangler deploy). Pode ser trocado na tela Online (fica salvo).
     // Servidores, em ordem de preferência: o próprio (Oracle Cloud, São Paulo; ping baixo no Brasil) e o da
@@ -54,6 +54,15 @@ public class OnlineClient : MonoBehaviour
         public bool inGame;
         public string level;
         public bool locked; // sala com senha
+    }
+
+    /// <summary>Números públicos do servidor (GET /stats): quem está online agora e quantos jogaram hoje.</summary>
+    public class ServerStats
+    {
+        public int online;
+        public int rooms;
+        public int today;
+        public int yesterday;
     }
 
     public enum State
@@ -345,6 +354,29 @@ public class OnlineClient : MonoBehaviour
                 yield break;
             }
             done(rooms, null);
+        }
+    }
+
+    /// <summary>Pede os números públicos do servidor; devolve null se o servidor não tem /stats ou não respondeu.</summary>
+    public IEnumerator FetchStats(Action<ServerStats> done)
+    {
+        using (var req = UnityWebRequest.Get(ServerUrl + "/stats"))
+        {
+            req.timeout = 8;
+            yield return req.SendWebRequest();
+            ServerStats stats = null;
+            if (req.result == UnityWebRequest.Result.Success)
+            {
+                try
+                {
+                    stats = JObject.Parse(req.downloadHandler.text).ToObject<ServerStats>();
+                }
+                catch (Exception)
+                {
+                    stats = null;
+                }
+            }
+            done(stats);
         }
     }
 
@@ -658,6 +690,10 @@ public class OnlineClient : MonoBehaviour
                 {
                     players.Add(p);
                     AddChat(new ChatLine { system = true, text = p.name + (p.spectator ? Loc.T(" entrou para assistir") : Loc.T(" entrou na sala")) });
+                    if (OnlineOptions.JoinSound && !OnlineMatch.Active)
+                    {
+                        OnlineSound.Ding(); // aviso sonoro (não durante a partida, para não atrapalhar quem joga)
+                    }
                 }
                 OnRoomChanged?.Invoke();
                 break;

@@ -14,7 +14,7 @@ public static class OnlineOptions
         void Set(string key, string value);
     }
 
-    // Chaves: "language" (auto/en/pt/ko), "primary", "fallback", "updates" (true/false), "filter" (true/false)
+    // Chaves: "language" (auto/en/pt/ko), "primary", "fallback", "updates" (true/false), "filter" (true/false), "joinsound" (true/false), "ghostalpha" (100/80/50/25/0), "ghostnames" (true/false)
     private sealed class PrefsStore : IStore
     {
         public string Get(string key, string fallback)
@@ -143,6 +143,45 @@ public static class OnlineOptions
         set
         {
             Store.Set("filter", value ? "true" : "false");
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Toca um aviso sonoro quando alguém entra na sala (ligado por padrão).</summary>
+    public static bool JoinSound
+    {
+        get => (Store.Get("joinsound", "true") ?? "true") != "false";
+        set
+        {
+            Store.Set("joinsound", value ? "true" : "false");
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Opacidade dos fantasmas dos outros jogadores, em %: 100, 80 (padrão), 50, 25 ou 0 (ocultos).</summary>
+    public static readonly int[] GhostOpacitySteps = { 100, 80, 50, 25, 0 };
+
+    public static int GhostOpacity
+    {
+        get
+        {
+            int v;
+            return int.TryParse(Store.Get("ghostalpha", "80"), out v) && Array.IndexOf(GhostOpacitySteps, v) >= 0 ? v : 80;
+        }
+        set
+        {
+            Store.Set("ghostalpha", value.ToString());
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Mostra o nome acima de cada fantasma (ligado por padrão).</summary>
+    public static bool GhostNames
+    {
+        get => (Store.Get("ghostnames", "true") ?? "true") != "false";
+        set
+        {
+            Store.Set("ghostnames", value ? "true" : "false");
             Changed?.Invoke();
         }
     }

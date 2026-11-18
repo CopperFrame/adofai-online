@@ -20,7 +20,7 @@ export interface Env {
 }
 
 const PROTOCOL_VERSION = 1;
-const MAX_PLAYERS = 4;
+const MAX_PLAYERS = 8;
 const MAX_SPECTATORS = 4; // quem entra com a partida em andamento assiste até ela acabar
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O e 1/I
 // região da sala = continente (código do Cloudflare); cada um aponta para um local de Durable Objects
@@ -31,6 +31,12 @@ const REGION_HINTS: Record<string, DurableObjectLocationHint> = {
 async function sha256hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// hash curto (IP + dia) para contar "ativos hoje" sem guardar o IP; só números saem do servidor
+async function statsHash(ip: string | null): Promise<string> {
+  if (!ip) return "";
+  return (await sha256hex(ip + ":" + new Date().toISOString().slice(0, 10) + ":stats")).slice(0, 16);
 }
 
 function json(data: unknown, status = 200): Response {
@@ -62,9 +68,15 @@ export default {
       return json({ ok: true, protocol: PROTOCOL_VERSION, colo: request.cf?.colo ?? null, region: request.cf?.continent ?? null });
     }
 
+    if (parts[0] === "stats" && parts.length === 1 && request.method === "GET") {
+      const directory = env.DIRECTORY.get(env.DIRECTORY.idFromName("global"));
+      return json(await directory.stats());
+    }
+
     if (parts[0] === "rooms" && parts.length === 1) {
       const directory = env.DIRECTORY.get(env.DIRECTORY.idFromName("global"));
       if (request.method === "GET") {
+        await directory.seen(await statsHash(request.headers.get("CF-Connecting-IP")));
         return json(await directory.list());
       }
       if (request.method === "POST") {
@@ -142,6 +154,53 @@ export class Directory extends DurableObject<Env> {
 
   async remove(code: string): Promise<void> {
     await this.ctx.storage.delete("room:" + code);
+  }
+
+  // salas privadas não aparecem na lista, mas os jogadores delas contam em /stats
+  async setPrivate(code: string, players: number): Promise<void> {
+    await this.ctx.storage.put("priv:" + code, { players, updated: Date.now() });
+  }
+
+  async removePrivate(code: string): Promise<void> {
+    await this.ctx.storage.delete("priv:" + code);
+  }
+
+  // jogador distinto visto hoje (hash curto de IP + dia); vira o dia quando a data muda
+  async seen(hash: string): Promise<void> {
+    if (!hash) return;
+    const day = new Date().toISOString().slice(0, 10);
+    if ((await this.ctx.storage.get<string>("statsDay")) !== day) {
+      const old = await this.ctx.storage.list({ prefix: "seen:" });
+      await this.ctx.storage.put("yesterday", old.size);
+      const keys = [...old.keys()];
+      for (let i = 0; i < keys.length; i += 120) await this.ctx.storage.delete(keys.slice(i, i + 120));
+      await this.ctx.storage.put("statsDay", day);
+    }
+    const key = "seen:" + hash;
+    if (!(await this.ctx.storage.get(key))) {
+      const count = (await this.ctx.storage.get<number>("todayCount")) ?? 0;
+      if (count < 20000) {
+        await this.ctx.storage.put(key, 1);
+        await this.ctx.storage.put("todayCount", count + 1);
+      }
+    }
+  }
+
+  async stats(): Promise<{ online: number; rooms: number; today: number; yesterday: number }> {
+    const now = Date.now();
+    let online = 0;
+    let rooms = 0;
+    for (const [, r] of await this.ctx.storage.list<{ players: number; updated: number }>({ prefix: "room:" })) {
+      if (now - r.updated <= LISTING_TTL_MS && r.players > 0) { online += r.players; rooms++; }
+    }
+    for (const [, r] of await this.ctx.storage.list<{ players: number; updated: number }>({ prefix: "priv:" })) {
+      if (now - r.updated <= LISTING_TTL_MS && r.players > 0) { online += r.players; rooms++; }
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    const sameDay = (await this.ctx.storage.get<string>("statsDay")) === day;
+    const today = sameDay ? (await this.ctx.storage.get<number>("todayCount")) ?? 0 : 0;
+    const yesterday = (await this.ctx.storage.get<number>("yesterday")) ?? 0;
+    return { online, rooms, today, yesterday };
   }
 }
 
@@ -270,6 +329,8 @@ export class Room extends DurableObject<Env> {
     // nextId > 1: alguém já entrou; sala que esvaziou sai da lista (a recém-criada aparece até o criador entrar)
     if (!s.isPublic || (count === 0 && s.nextId > 1)) {
       await directory.remove(s.code);
+      if (!s.isPublic && count > 0) await directory.setPrivate(s.code, count);
+      else await directory.removePrivate(s.code);
       return;
     }
     const level = s.level as { title?: string } | null;
@@ -330,6 +391,7 @@ export class Room extends DurableObject<Env> {
     const info: PlayerInfo = { id: s.nextId++, name, ready: false, joined: Date.now(), spectator: asSpectator };
     server.serializeAttachment(info);
     if (ipHash) s.ipById = { ...(s.ipById ?? {}), [String(info.id)]: ipHash };
+    await this.env.DIRECTORY.get(this.env.DIRECTORY.idFromName("global")).seen(await statsHash(request.headers.get("CF-Connecting-IP")));
     if (s.hostId === 0 || !this.players().some((p) => p.info.id === s.hostId)) {
       s.hostId = info.id;
     }
