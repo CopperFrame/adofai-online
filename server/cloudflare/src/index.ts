@@ -148,21 +148,29 @@ export class Directory extends DurableObject<Env> {
     return alive.sort((a, b) => b.updated - a.updated).slice(0, 100);
   }
 
-  async upsert(listing: RoomListing): Promise<void> {
+  // Cada sala numera as próprias atualizações (epoch = quando o objeto da sala acordou, seq = contador). Quando vários
+  // jogadores saem ao mesmo tempo as chamadas chegam fora de ordem; a mais antiga não pode sobrescrever a mais nova.
+  private async isNewer(code: string, epoch: number, seq: number): Promise<boolean> {
+    const cur = await this.ctx.storage.get<{ epoch: number; seq: number; at: number }>("seq:" + code);
+    if (cur && (cur.epoch > epoch || (cur.epoch === epoch && cur.seq >= seq))) return false;
+    await this.ctx.storage.put("seq:" + code, { epoch, seq, at: Date.now() });
+    return true;
+  }
+
+  async upsert(listing: RoomListing, epoch = 0, seq = 0): Promise<void> {
+    if (!(await this.isNewer(listing.code, epoch, seq))) return;
     await this.ctx.storage.put("room:" + listing.code, { ...listing, updated: Date.now() });
   }
 
-  async remove(code: string): Promise<void> {
-    await this.ctx.storage.delete("room:" + code);
+  async remove(code: string, epoch = 0, seq = 0): Promise<void> {
+    if (!(await this.isNewer(code, epoch, seq))) return;
+    await this.ctx.storage.delete(["room:" + code, "priv:" + code]);
   }
 
-  // salas privadas não aparecem na lista, mas os jogadores delas contam em /stats
-  async setPrivate(code: string, players: number): Promise<void> {
+  // salas privadas não aparecem na lista, mas os jogadores delas contam em /stats (0 jogadores = não conta)
+  async setPrivate(code: string, players: number, epoch = 0, seq = 0): Promise<void> {
+    if (!(await this.isNewer(code, epoch, seq))) return;
     await this.ctx.storage.put("priv:" + code, { players, updated: Date.now() });
-  }
-
-  async removePrivate(code: string): Promise<void> {
-    await this.ctx.storage.delete("priv:" + code);
   }
 
   // jogador distinto visto hoje (hash curto de IP + dia); vira o dia quando a data muda
@@ -196,6 +204,11 @@ export class Directory extends DurableObject<Env> {
     for (const [, r] of await this.ctx.storage.list<{ players: number; updated: number }>({ prefix: "priv:" })) {
       if (now - r.updated <= LISTING_TTL_MS && r.players > 0) { online += r.players; rooms++; }
     }
+    // limpeza: marcas de ordem e contagens de salas privadas que ninguém atualiza há tempo
+    const old: string[] = [];
+    for (const [key, r] of await this.ctx.storage.list<{ at: number }>({ prefix: "seq:" })) if (now - r.at > 600_000) old.push(key);
+    for (const [key, r] of await this.ctx.storage.list<{ updated: number }>({ prefix: "priv:" })) if (now - r.updated > 600_000) old.push(key);
+    for (let i = 0; i < old.length; i += 120) await this.ctx.storage.delete(old.slice(i, i + 120));
     const day = new Date().toISOString().slice(0, 10);
     const sameDay = (await this.ctx.storage.get<string>("statsDay")) === day;
     const today = sameDay ? (await this.ctx.storage.get<number>("todayCount")) ?? 0 : 0;
@@ -319,6 +332,8 @@ export class Room extends DurableObject<Env> {
   }
 
   private lastPublish = 0;
+  private publishEpoch = Date.now();
+  private publishSeq = 0;
 
   private async publish(): Promise<void> {
     const s = this.state;
@@ -327,10 +342,14 @@ export class Room extends DurableObject<Env> {
     const directory = this.env.DIRECTORY.get(this.env.DIRECTORY.idFromName("global"));
     const count = this.players().length;
     // nextId > 1: alguém já entrou; sala que esvaziou sai da lista (a recém-criada aparece até o criador entrar)
-    if (!s.isPublic || (count === 0 && s.nextId > 1)) {
-      await directory.remove(s.code);
-      if (!s.isPublic && count > 0) await directory.setPrivate(s.code, count);
-      else await directory.removePrivate(s.code);
+    const epoch = this.publishEpoch;
+    const seq = ++this.publishSeq;
+    if (!s.isPublic) {
+      await directory.setPrivate(s.code, count, epoch, seq);
+      return;
+    }
+    if (count === 0 && s.nextId > 1) {
+      await directory.remove(s.code, epoch, seq);
       return;
     }
     const level = s.level as { title?: string } | null;
@@ -345,7 +364,7 @@ export class Room extends DurableObject<Env> {
       inGame: s.inGame,
       level: level?.title ? String(level.title).slice(0, 64) : "",
       updated: Date.now(),
-    });
+    }, epoch, seq);
   }
 
   async fetch(request: Request): Promise<Response> {
